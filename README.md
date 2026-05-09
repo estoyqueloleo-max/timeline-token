@@ -24,7 +24,7 @@ El ejecutable soporta las siguientes opciones para configurar el comportamiento 
 | `--delay` | Retraso entre consultas de búsqueda (ej: `5s`, `10s`). | `1s` |
 | `--serve` | Inicia un servidor HTTP local para visualizar el mapa semántico. | `false` |
 | `--port` | Puerto para el servidor HTTP local. | `8080` |
-| `--llm` | URL del endpoint de un LLM local (Ollama/vLLM) para detección de archivos. | `http://192.168.1.4:4000` |
+| `--llm` | URL del endpoint de un LLM local (Ollama/vLLM) para detección de archivos. | `http://192.168.1.4:4001` |
 | `--model` | Nombre del modelo LLM a utilizar. | `qwen3` |
 | `--test-archive-url` | Prueba la detección de archivos de un portal específico sin ejecutar el pipeline. | `""` |
 

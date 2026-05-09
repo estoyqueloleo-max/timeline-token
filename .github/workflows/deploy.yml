@@ -15,27 +15,22 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
-          lfs: true
-
-      - name: Deploy to GitHub Pages
-        uses: peaceiris/actions-gh-pages@v3
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./
-          publish_files: news_central.db,semantic_map.html,README.md
-          # Note: We keep the whole root if we want, but it's cleaner to only publish what's needed.
-          # However, peaceiris/actions-gh-pages usually takes a directory.
-          # I'll create a 'public' dir and copy files there.
+          lfs: true # Descarga los archivos reales de LFS
 
       - name: Prepare Public Dir
         run: |
           mkdir -p public
+          # Copiamos la DB y el visor (renombrado a index.html para que sea la home)
           cp news_central.db public/
           cp semantic_map.html public/index.html
           cp semantic_map.html public/
+          # Opcional: copiar el README si quieres tenerlo ahí
+          cp README.md public/
           
-      - name: Deploy
+      - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v3
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: ./public
+          # Esto evita que se intente usar LFS en la rama de despliegue
+          disable_nojekyll: false 

@@ -13,7 +13,7 @@ import (
 
 func RunPipeline() {
 	delayFlag := flag.Duration("delay", 1*time.Second, "Delay between search queries (e.g., 10s for relaxed search)")
-	llmURLFlag := flag.String("llm", "http://192.168.1.4:4000", "Local LLM endpoint for archive detection")
+	llmURLFlag := flag.String("llm", "http://192.168.1.4:4001", "Local LLM endpoint for archive detection")
 	modelNameFlag := flag.String("model", "qwen3", "Local LLM model name")
 	modeFlag := flag.String("mode", "live", "Execution mode: live, historical, or both")
 	serveFlag := flag.Bool("serve", false, "Start a local HTTP server for the interactive semantic map")
