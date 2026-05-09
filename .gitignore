@@ -1,0 +1,19 @@
+# Binaries
+news-tool
+*.exe
+*.dll
+*.so
+
+# Database
+news_central.db-shm
+news_central.db-wal
+
+# OS
+.DS_Store
+
+# Go
+bin/
+pkg/
+src/
+*.test
+*.out

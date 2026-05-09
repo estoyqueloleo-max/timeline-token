@@ -1,0 +1,45 @@
+package legacy
+
+import (
+	"fmt"
+	"log"
+	"time"
+
+	"github.com/knights-analytics/hugot"
+	"github.com/knights-analytics/hugot/options"
+)
+
+func RunSentiment() {
+	ovOptions := map[string]string{"device_type": "GPU"}
+	fmt.Println("Iniciando sesión Sentiment con OpenVINO (Target: GPU)...")
+
+	session, err := hugot.NewORTSession(options.WithOpenVINO(ovOptions))
+	if err != nil {
+		log.Fatalf("Error sesión: %v", err)
+	}
+	defer session.Destroy()
+
+	modelConfig := hugot.TextClassificationConfig{
+		ModelPath: "models/sentiment-model/distilbert-base-uncased-finetuned-sst-2-english",
+		Name:      "sentiment",
+	}
+
+	pipeline, err := hugot.NewPipeline(session, modelConfig)
+	if err != nil {
+		log.Fatalf("Error pipeline: %v", err)
+	}
+
+	inputText := "Hugot running on Intel Arc is incredibly fast and efficient for production Go applications!"
+	fmt.Printf("Texto: %s\n", inputText)
+
+	for i := 0; i < 5; i++ {
+		start := time.Now()
+		result, err := pipeline.Run([]string{inputText})
+		if err != nil {
+			log.Printf("Error inferencia: %v", err)
+			continue
+		}
+		fmt.Printf("[%d] Resultado: %v | Latencia: %v\n", i+1, result.GetOutput(), time.Since(start))
+		time.Sleep(100 * time.Millisecond)
+	}
+}
