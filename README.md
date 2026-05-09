@@ -1,86 +1,87 @@
 # Timeline Token
 
-Herramienta de descubrimiento recursivo de portales de noticias, extracción de titulares y análisis de similitud semántica mediante Hugot y SQLite.
+Recursive news discovery tool, headline extraction, and semantic similarity analysis using Hugot, OpenVINO, and SQLite.
 
-## 🚀 Características
+## 🚀 Features
 
-- **Descubrimiento Inteligente**: Utiliza SearXNG para localizar portales de noticias y detecta automáticamente fuentes RSS o enlaces relevantes.
-- **Extracción Recursiva**: Rastrea tanto fuentes RSS como enlaces internos de noticias para construir una base de datos profunda.
-- **Búsqueda Relajada y Expansión Global**: Soporta tiempos de espera dinámicos para evitar baneos (`--delay`) y rastrea portales de España, Alemania, India, China, Rusia, **Argentina, Sudamérica, África y Canadá**.
-- **Detección de Hemerotecas Asistida (LLM)**: Identifica URLs de archivo automáticamente de diarios de noticias, con soporte para patrones basados en fecha (YYYY/MM/DD).
-- **Mapa Semántico Interactivo con Filtros**: Grafo dirigido de fuerza (D3.js) con **filtros para 10 tipos de entidades**, filtro dinámico por **país de origen (región)**, palabra clave y profundidad de recursión.
-- **Análisis de Entidades (NER + Regex)**: Extrae e identifica Personas, Lugares, Organizaciones y más usando modelos de IA y patrones avanzados.
-- **Procesamiento Incremental (`--resume`)**: Salta portales y noticias ya analizados basándose en hashes y entidades existentes, optimizando el tiempo de ejecución.
-- **Análisis Semántico**: Genera vectores de características (embeddings) para cada titular utilizando el modelo `all-MiniLM-L6-v2` acelerado con OpenVINO.
+- **Intelligent Discovery**: Uses SearXNG to locate news portals and automatically detects RSS feeds or relevant internal links.
+- **Recursive Extraction**: Crawls both RSS feeds and internal news links to build a deep, structured database.
+- **Relaxed Search & Global Expansion**: Supports dynamic timeouts to prevent bans (`--delay`) and tracks portals from Spain, Germany, India, China, Russia, **Argentina, South America, Africa, and Canada**.
+- **LLM-Assisted Archive Detection**: Automatically identifies archive URLs from news outlets, with support for date-based patterns (YYYY/MM/DD).
+- **Interactive Semantic Map**: D3.js force-directed graph with **filters for 10 entity types**, dynamic filtering by **country of origin (region)**, keywords, and recursion depth.
+- **Entity Analysis (NER + Regex)**: Extracts and identifies Persons, Locations, Organizations, and more using local AI models and advanced patterns.
+- **Incremental Processing (`--resume`)**: Skips already analyzed portals and news items based on hashes and existing entities, optimizing execution time.
+- **Semantic Analysis**: Generates feature vectors (embeddings) for each headline using the `all-MiniLM-L6-v2` model accelerated with OpenVINO.
 
-## ⚙️ Opciones de Línea de Comandos
+## ⚙️ Command Line Options
 
-El ejecutable soporta las siguientes opciones para configurar el comportamiento del crawling y análisis:
+The executable supports the following options to configure crawling and analysis behavior:
 
-| Flags | Descripción | Por defecto |
-|-------|-------------|-------------|
-| `--mode` | Modo de ejecución: `live` (RSS), `historical` (Archivos) o `both`. | `live` |
-| `--resume` | Omite el descubrimiento y análisis para datos ya existentes en la DB. | `false` |
-| `--delay` | Retraso entre consultas de búsqueda (ej: `5s`, `10s`). | `1s` |
-| `--serve` | Inicia un servidor HTTP local para visualizar el mapa semántico. | `false` |
-| `--port` | Puerto para el servidor HTTP local. | `8080` |
-| `--llm` | URL del endpoint de un LLM local (Ollama/vLLM) para detección de archivos. | `http://192.168.1.4:4001` |
-| `--model` | Nombre del modelo LLM a utilizar. | `qwen3` |
-| `--test-archive-url` | Prueba la detección de archivos de un portal específico sin ejecutar el pipeline. | `""` |
+| Flags | Description | Default |
+|-------|-------------|---------|
+| `--mode` | Execution mode: `live` (RSS), `historical` (Archives) or `both`. | `live` |
+| `--resume` | Skips discovery and analysis for existing data in the DB. | `false` |
+| `--delay` | Delay between search queries (e.g., `5s`, `10s`). | `1s` |
+| `--serve` | Starts a local HTTP server to visualize the semantic map. | `false` |
+| `--port` | Port for the local HTTP server. | `8080` |
+| `--llm` | URL of a local LLM endpoint (Ollama/vLLM) for archive detection. | `http://192.168.1.4:4001` |
+| `--model` | LLM model name to use. | `qwen3` |
+| `--test-archive-url` | Tests archive detection for a specific portal without running the pipeline. | `""` |
 
-## 🌐 Visualización en Vivo
-Puedes ver el resultado de la última búsqueda aquí:
-👉 **[Mapa Semántico Interactivo](https://estoyqueloleo-max.github.io/timeline-token/)**
+## 🌐 Live Visualization
 
-## 🧠 ¿Cómo funciona? El Núcleo Semántico
+You can view the results of the latest crawl here:
+👉 **[Interactive Semantic Map](https://estoyqueloleo-max.github.io/timeline-token/index.html)**
 
-La herramienta utiliza un enfoque de tres niveles para entender la información:
+## 🧠 How it works: The Semantic Core
 
-### 1. Embeddings (Significado Latente)
-Convertimos cada titular en un vector de 384 dimensiones. Esto permite al sistema agrupar noticias similares aunque no compartan palabras exactas.
+The tool uses a three-level approach to understand information:
 
-### 2. Reconocimiento de Entidades y Filtrado por Región
-Extraemos categorías de información y permitimos filtrar por el origen de la noticia:
-- **Modelos IA (NER)**: Personas (PER), Lugares (LOC), Organizaciones (ORG), Miscelánea (MISC).
-- **Patrones (Regex)**: Fechas, Dinero, Horas, Cantidades, Links y Correos.
-- **Filtro Geográfico**: Permite aislar tendencias de países específicos (`es`, `ar`, `fr`, `de`, `in`, `cn`, `ca`, `latam`, `africa`, `global`).
+### 1. Embeddings (Latent Meaning)
+We convert each headline into a 384-dimensional vector. This allows the system to group similar news items even if they don't share exact keywords.
 
-### 3. Co-ocurrencia y Navegación
-El mapa visualiza las conexiones entre estas entidades. Puedes hacer clic en los nodos para ver las noticias asociadas, navegar por el historial de clics y ver resaltado contextual de palabras clave.
+### 2. Entity Recognition & Region Filtering
+We extract categories of information and allow filtering by news origin:
+- **AI Models (NER)**: Persons (PER), Locations (LOC), Organizations (ORG), Miscellaneous (MISC).
+- **Patterns (Regex)**: Dates, Money, Time, Quantities, Links, and Emails.
+- **Geographic Filter**: Isolate trends from specific countries (`es`, `ar`, `fr`, `de`, `in`, `cn`, `ca`, `latam`, `africa`, `global`).
 
-## 🚦 Inicio Rápido
+### 3. Co-occurrence & Navigation
+The map visualizes connections between these entities. You can click on nodes to see associated news, navigate through click history, and see contextual keyword highlighting.
 
-1. **Instalar dependencias**:
+## 🚦 Quick Start
+
+1. **Install dependencies**:
    ```bash
    go mod tidy
    ```
 
-2. **Compilar**:
+2. **Compile**:
    ```bash
    go build -o news-tool .
    ```
 
-3. **Ejecutar con Procesamiento Incremental**:
+3. **Run with Incremental Processing**:
    ```bash
    ./news-tool --mode=both --resume --delay=5s
    ```
 
-4. **Visualización Interactiva**:
+4. **Interactive Visualization**:
    ```bash
    ./news-tool --serve --port=8080
    ```
-   Visita: [http://localhost:8080/semantic_map.html](http://localhost:8080/semantic_map.html)
+   Visit: [http://localhost:8080/semantic_map.html](http://localhost:8080/semantic_map.html)
 
-## 🗄️ Persistencia Histórica
+## 🗄️ Historical Persistence
 
-La base de datos SQLite (`news_central.db`) gestiona:
-- **`portals`**: Registro de fuentes de noticias (nombre, RSS, región, idioma, estado de archivo).
-- **`news`**: Metadatos de cada noticia vinculada a su portal de origen.
-- **`news_entities`**: Todas las entidades extraídas vinculadas a sus noticias.
-- **`news_embeddings`**: Vectores para búsquedas de similitud.
+The SQLite database (`news_central.db`) manages:
+- **`portals`**: Registry of news sources (name, RSS, region, language, archive status).
+- **`news`**: Metadata for each news item linked to its source portal.
+- **`news_entities`**: All extracted entities linked to their news items.
+- **`news_embeddings`**: Vectors for similarity searches.
 
-## 📝 Planes Futuros
+## 📝 Future Plans
 
-- Implementar análisis de sentimientos como vector visual secundario.
-- Integración de resúmenes automáticos de clústeres mediante LLM local.
-- Exportación de reportes PDF con el grafo de relaciones.
+- Implement sentiment analysis as a secondary visual vector.
+- Automated cluster summarization integration using local LLM.
+- PDF report export with relationship graphs.
