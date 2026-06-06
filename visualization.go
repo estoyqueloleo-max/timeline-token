@@ -136,9 +136,9 @@ func GenerateVisualization() {
         text.dimmed { opacity: 0.1; }
         text.highlight-text { fill: #fff; font-weight: bold; opacity: 1 !important; font-size: 14px; }
         
-            font-size: 1.5rem;
-            color: #69b3a2;
-        }
+        .link-label { font-size: 10px; fill: #888; pointer-events: none; text-anchor: middle; transition: opacity 0.3s; }
+        .link-label.dimmed { opacity: 0.1; }
+        .link-label.highlight-text { fill: #fff; opacity: 1 !important; font-size: 12px; font-weight: bold; }
         
         /* Node Colors by Type (Extended) */
         .node-per { fill: #ffeb3b !important; } /* Yellow - Persons */
@@ -302,27 +302,17 @@ func GenerateVisualization() {
         </div>
     </div>
     <div class="control-group">
-        <div class="collapsible-header" onclick="toggleSection('entity-section')">
-            <span>Filtro de Entidades</span>
+        <div class="collapsible-header" onclick="toggleSection('relation-section')">
+            <span>Filtro de Relaciones</span>
             <span class="toggle-icon">▼</span>
         </div>
-        <div id="entity-section" class="collapsible-content" style="max-height: 500px;">
+        <div id="relation-section" class="collapsible-content" style="max-height: 500px;">
             <div class="filter-actions">
-                <span onclick="selectAll('entity-filters', true)">Todos</span>
-                <span onclick="selectAll('entity-filters', false)">Ninguno</span>
+                <span onclick="selectAll('relation-filters', true)">Todos</span>
+                <span onclick="selectAll('relation-filters', false)">Ninguno</span>
             </div>
-            <div id="entity-filters" style="display: grid; grid-template-columns: 1fr 1fr; gap: 5px; font-size: 0.8rem;">
-                <label style="font-weight: normal; color: #ffeb3b;"><input type="checkbox" value="PER"> Pers</label>
-                <label style="font-weight: normal; color: #4da6ff;"><input type="checkbox" value="LOC"> Lugares</label>
-                <label style="font-weight: normal; color: #4caf50;"><input type="checkbox" value="ORG"> Orgs</label>
-                <label style="font-weight: normal; color: #ab47bc;"><input type="checkbox" value="MISC"> Misc</label>
-                <label style="font-weight: normal; color: #ff7043;"><input type="checkbox" value="DATE"> Fechas</label>
-                <label style="font-weight: normal; color: #ec407a;"><input type="checkbox" value="MONEY"> Dinero</label>
-                <label style="font-weight: normal; color: #8d6e63;"><input type="checkbox" value="TIME"> Hora</label>
-                <label style="font-weight: normal; color: #78909c;"><input type="checkbox" value="QUAN"> Cant</label>
-                <label style="font-weight: normal; color: #d4e157;"><input type="checkbox" value="URLL"> Link</label>
-                <label style="font-weight: normal; color: #00bcd4;"><input type="checkbox" value="EMAIL"> Correo</label>
-                <label style="font-weight: normal; color: #69b3a2;"><input type="checkbox" value="default"> Otros</label>
+            <div id="relation-filters" style="display: flex; flex-direction: column; gap: 5px; font-size: 0.8rem; height: 300px; overflow-y: auto;">
+                <!-- Dinámicamente poblado -->
             </div>
         </div>
     </div>
@@ -349,9 +339,10 @@ func GenerateVisualization() {
     
     let db;
     let allNews = [];
+    let allRelations = [];
     let wordTypes = {};
     let simulation, svg, container;
-    let nodeSelection, linkSelection, textSelection;
+    let nodeSelection, linkSelection, textSelection, labelSelection;
     let globalLinks = [];
     let wordToArticlesMap = {};
     
@@ -379,6 +370,32 @@ func GenerateVisualization() {
             }
             entStmt.free();
             
+            // Cargar relaciones
+            try {
+                const relStmt = db.prepare("SELECT news_id, head, tail, label, score FROM news_relations WHERE score > 0.1");
+                while(relStmt.step()) { allRelations.push(relStmt.getAsObject()); }
+                relStmt.free();
+            } catch(e) {
+                console.log("Tabla news_relations no encontrada, asegurate de ejecutar el pipeline antes.");
+            }
+            
+            // Populate relation filters
+            const relationLabels = [...new Set(allRelations.map(r => r.label).filter(l => l))].sort();
+            const relContainer = document.getElementById("relation-filters");
+            relationLabels.forEach(lbl => {
+                const label = document.createElement("label");
+                label.style.fontWeight = "normal";
+                label.style.color = "#aaa";
+                const checkbox = document.createElement("input");
+                checkbox.type = "checkbox";
+                checkbox.value = lbl;
+                checkbox.checked = true;
+                checkbox.addEventListener("change", updateGraph);
+                label.appendChild(checkbox);
+                label.appendChild(document.createTextNode(" " + lbl));
+                relContainer.appendChild(label);
+            });
+
             // Populate region filters
             const regions = [...new Set(allNews.map(n => n.region).filter(r => r))].sort();
             const regionContainer = document.getElementById("region-filters");
@@ -398,9 +415,9 @@ func GenerateVisualization() {
                 const sliderMin = document.getElementById("date-slider-min");
                 const sliderMax = document.getElementById("date-slider-max");
                 
-                // Default to last 24 hours or min if less than 24h of data
-                const last24h = maxDateVal - (24 * 60 * 60 * 1000);
-                const initialStart = Math.max(minDateVal, last24h);
+                // Default to last 7 days or min if less than 7 days of data
+                const last7d = maxDateVal - (7 * 24 * 60 * 60 * 1000);
+                const initialStart = Math.max(minDateVal, last7d);
 
                 sliderMin.min = minDateVal; sliderMin.max = maxDateVal; sliderMin.value = initialStart;
                 sliderMax.min = minDateVal; sliderMax.max = maxDateVal; sliderMax.value = maxDateVal;
@@ -409,6 +426,22 @@ func GenerateVisualization() {
             }
 
             svg = d3.select("svg");
+            
+            // Definir flecha (marker-end)
+            svg.append("defs").append("marker")
+                .attr("id", "arrowhead")
+                .attr("viewBox", "-0 -5 10 10")
+                .attr("refX", 25)
+                .attr("refY", 0)
+                .attr("orient", "auto")
+                .attr("markerWidth", 6)
+                .attr("markerHeight", 6)
+                .attr("xoverflow", "visible")
+                .append("svg:path")
+                .attr("d", "M 0,-5 L 10 ,0 L 0,5")
+                .attr("fill", "#69b3a2")
+                .style("stroke","none");
+
             container = svg.append("g");
             
             const zoom = d3.zoom().scaleExtent([0.1, 4]).on("zoom", (e) => container.attr("transform", e.transform));
@@ -531,6 +564,7 @@ func GenerateVisualization() {
         const maxDate = parseInt(document.getElementById("date-slider-max").value);
         const searchText = document.getElementById("search-input").value.toLowerCase().trim();
         const selectedRegions = new Set(Array.from(document.querySelectorAll("#region-filters input:checked")).map(i => i.value));
+        const selectedRelations = new Set(Array.from(document.querySelectorAll("#relation-filters input:checked")).map(i => i.value));
         const depthInput = document.getElementById("recursion-depth");
         const depth = depthInput ? parseInt(depthInput.value) : 1;
 
@@ -540,36 +574,41 @@ func GenerateVisualization() {
             const regionMatch = selectedRegions.has(n.region);
             return dateMatch && regionMatch;
         });
+        
+        const filteredNewsMap = {};
+        filteredNews.forEach(n => filteredNewsMap[n.id] = n);
 
         const wordCounts = {};
         const coOccurrences = {};
         wordToArticlesMap = {};
 
-        filteredNews.forEach(row => {
-            const cleanTitle = row.title.toLowerCase().replace(/[^\p{L}\d_\s]/gu, '');
-            const words = cleanTitle.split(/\s+/).filter(w => w.length > 3 && !stopwords.has(w));
-            const uniqueWords = [...new Set(words)];
+        // Extraer grafo de knowledge graph (relaciones)
+        const relevantRelations = allRelations.filter(r => filteredNewsMap[r.news_id] && selectedRelations.has(r.label));
+        
+        relevantRelations.forEach(r => {
+            const w1 = r.head;
+            const w2 = r.tail;
+            const newsItem = filteredNewsMap[r.news_id];
             
-            uniqueWords.forEach(w => {
-                wordCounts[w] = (wordCounts[w] || 0) + 1;
-                if(!wordToArticlesMap[w]) wordToArticlesMap[w] = [];
-                wordToArticlesMap[w].push({title: row.title, url: row.url, date: row.published_date, region: row.region});
-            });
-
-            for(let i=0; i<uniqueWords.length; i++){
-                const w1 = uniqueWords[i];
-                if(!coOccurrences[w1]) coOccurrences[w1] = {};
-                for(let j=i+1; j<uniqueWords.length; j++){
-                    const w2 = uniqueWords[j];
-                    coOccurrences[w1][w2] = (coOccurrences[w1][w2] || 0) + 1;
-                    if(!coOccurrences[w2]) coOccurrences[w2] = {};
-                    coOccurrences[w2][w1] = (coOccurrences[w2][w1] || 0) + 1;
-                }
+            wordCounts[w1] = (wordCounts[w1] || 0) + 1;
+            wordCounts[w2] = (wordCounts[w2] || 0) + 1;
+            
+            if(!wordToArticlesMap[w1]) wordToArticlesMap[w1] = [];
+            if(!wordToArticlesMap[w1].find(a => a.url === newsItem.url)) {
+                 wordToArticlesMap[w1].push({title: newsItem.title, url: newsItem.url, date: newsItem.published_date, region: newsItem.region});
             }
+            if(!wordToArticlesMap[w2]) wordToArticlesMap[w2] = [];
+            if(!wordToArticlesMap[w2].find(a => a.url === newsItem.url)) {
+                 wordToArticlesMap[w2].push({title: newsItem.title, url: newsItem.url, date: newsItem.published_date, region: newsItem.region});
+            }
+
+            if(!coOccurrences[w1]) coOccurrences[w1] = {};
+            coOccurrences[w1][w2] = { weight: (coOccurrences[w1][w2]?.weight || 0) + 1, label: r.label };
+            if(!coOccurrences[w2]) coOccurrences[w2] = {};
         });
 
         let nodesToInclude = new Set();
-        const initialNodes = Object.keys(wordCounts).filter(w => wordCounts[w] >= MIN_COUNT);
+        const initialNodes = Object.keys(wordCounts).filter(w => wordCounts[w] >= 1); // Bajado a 1 para mostrar el grafo
 
         if (searchText) {
             let currentLevel = initialNodes.filter(w => w.includes(searchText));
@@ -584,23 +623,32 @@ func GenerateVisualization() {
                             neighbors.add(neighbor);
                         }
                     });
+                    
+                    // También buscar hacia atrás
+                    Object.keys(coOccurrences).forEach(k => {
+                        if(coOccurrences[k][node] && initialNodes.includes(k) && !nodesToInclude.has(k)) {
+                            neighbors.add(k);
+                        }
+                    });
                 });
                 neighbors.forEach(n => nodesToInclude.add(n));
                 currentLevel = Array.from(neighbors);
             }
         } else {
-            initialNodes.forEach(n => nodesToInclude.add(n));
+            // SHOW TOP 300 HUBS ONLY IF NO SEARCH TEXT
+            const sortedHubs = Object.keys(wordCounts)
+                .sort((a,b) => wordCounts[b] - wordCounts[a])
+                .slice(0, 300);
+                
+            sortedHubs.forEach(n => nodesToInclude.add(n));
         }
-
-        const selectedTypes = new Set(Array.from(document.querySelectorAll("#entity-filters input:checked")).map(i => i.value));
 
         const nodes = Array.from(nodesToInclude)
             .map(w => ({
                 id: w, 
-                value: wordCounts[w],
+                value: Math.min(25, wordCounts[w]), // Limitar el tamaño visual
                 type: wordTypes[w] || 'default'
-            }))
-            .filter(n => selectedTypes.has(n.type));
+            }));
 
         globalLinks = [];
         const seenLinks = new Set();
@@ -610,13 +658,12 @@ func GenerateVisualization() {
             const w1 = n1.id;
             Object.keys(coOccurrences[w1] || {}).forEach(w2 => {
                 if(finalNodeIds.has(w2)) {
-                    const weight = coOccurrences[w1][w2];
-                    if(weight >= MIN_CO_OCCURRENCE) {
-                        const idKey = [w1, w2].sort().join("|");
-                        if(!seenLinks.has(idKey)) {
-                            globalLinks.push({source: w1, target: w2, value: weight});
-                            seenLinks.add(idKey);
-                        }
+                    const data = coOccurrences[w1][w2];
+                    const weight = data.weight;
+                    const idKey = [w1, w2, data.label].join("|");
+                    if(!seenLinks.has(idKey)) {
+                        globalLinks.push({source: w1, target: w2, value: weight, label: data.label});
+                        seenLinks.add(idKey);
                     }
                 }
             });
@@ -633,17 +680,21 @@ func GenerateVisualization() {
         const height = window.innerHeight;
 
         simulation = d3.forceSimulation(nodes)
-            .force("link", d3.forceLink(links).id(d => d.id).distance(150))
-            .force("charge", d3.forceManyBody().strength(-300))
+            .force("link", d3.forceLink(links).id(d => d.id).distance(100))
+            .force("charge", d3.forceManyBody().strength(-200))
             .force("center", d3.forceCenter(width / 2, height / 2))
-            .force("collide", d3.forceCollide().radius(d => Math.sqrt(d.value) * 6 + 10));
+            .force("collide", d3.forceCollide().radius(d => Math.sqrt(d.value) * 6 + 10).iterations(2));
 
-        linkSelection = container.append("g")
-            .attr("class", "links")
-            .selectAll("line")
-            .data(links)
-            .enter().append("line")
-            .attr("stroke-width", d => Math.sqrt(d.value) * 2);
+        const linkGroup = container.append("g").attr("class", "links").selectAll("g").data(links).enter().append("g");
+        
+        linkSelection = linkGroup.append("line")
+            .attr("stroke-width", d => Math.sqrt(d.value) * 1.5)
+            .attr("marker-end", "url(#arrowhead)");
+            
+        labelSelection = linkGroup.append("text")
+            .attr("class", "link-label")
+            .attr("dy", -5)
+            .text(d => d.label);
 
         nodeSelection = container.append("g")
             .attr("class", "nodes")
@@ -652,11 +703,16 @@ func GenerateVisualization() {
             .enter().append("g");
 
         nodeSelection.append("circle")
-            .attr("r", d => Math.max(8, Math.sqrt(d.value) * 6))
+            .attr("r", d => Math.max(10, Math.sqrt(d.value) * 6))
             .attr("class", d => "node-" + d.type.toLowerCase())
             .on("click", (event, d) => {
                 event.stopPropagation();
                 handleNodeClick(d);
+            })
+            .on("dblclick", (event, d) => {
+                event.stopPropagation();
+                document.getElementById("search-input").value = d.id;
+                updateGraph();
             })
             .call(d3.drag().on("start", dragstarted).on("drag", dragged).on("end", dragended));
 
@@ -667,6 +723,11 @@ func GenerateVisualization() {
 
         simulation.on("tick", () => {
             linkSelection.attr("x1", d => d.source.x).attr("y1", d => d.source.y).attr("x2", d => d.target.x).attr("y2", d => d.target.y);
+            
+            // Colocar etiquetas en el centro de la línea
+            labelSelection.attr("x", d => (d.source.x + d.target.x) / 2)
+                          .attr("y", d => (d.source.y + d.target.y) / 2);
+                          
             nodeSelection.attr("transform", d => "translate(" + d.x + "," + d.y + ")");
         });
 
@@ -718,12 +779,17 @@ func GenerateVisualization() {
         textSelection
             .classed("highlight-text", d => currentHighlightedNeighbors.has(d.id))
             .classed("dimmed", d => !currentHighlightedNeighbors.has(d.id));
+            
+        labelSelection
+            .classed("highlight-text", d => d.source.id === nodeId || d.target.id === nodeId)
+            .classed("dimmed", d => d.source.id !== nodeId && d.target.id !== nodeId);
     }
 
     function resetHighlight() {
         linkSelection.classed("highlight-link", false).classed("dimmed", false);
         nodeSelection.selectAll("circle").classed("highlight-center", false).classed("highlight-neighbor", false).classed("dimmed", false);
         textSelection.classed("highlight-text", false).classed("dimmed", false);
+        labelSelection.classed("highlight-text", false).classed("dimmed", false);
         clickHistory = [];
         currentHighlightedNeighbors = new Set();
         document.getElementById("back-btn").disabled = true;

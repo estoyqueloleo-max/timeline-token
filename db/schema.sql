@@ -69,3 +69,14 @@ CREATE TABLE IF NOT EXISTS news_entities (
     PRIMARY KEY(news_id, word, type),
     FOREIGN KEY(news_id) REFERENCES news(id)
 );
+
+-- News relations table (Knowledge Graph)
+CREATE TABLE IF NOT EXISTS news_relations (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    news_id INTEGER,
+    head TEXT,
+    tail TEXT,
+    label TEXT,
+    score REAL,
+    FOREIGN KEY(news_id) REFERENCES news(id)
+);

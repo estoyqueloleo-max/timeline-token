@@ -7,6 +7,8 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"time"
 	"timeline-token/db"
 )
@@ -19,6 +21,7 @@ func RunPipeline() {
 	serveFlag := flag.Bool("serve", false, "Start a local HTTP server for the interactive semantic map")
 	portFlag := flag.String("port", "8080", "Port for the local HTTP server")
 	resumeFlag := flag.Bool("resume", false, "Skip discovery and analysis for existing data")
+	analyzeOnlyFlag := flag.Bool("analyze-only", false, "Skip all crawling and discovery, jumping straight to Step 3 (Semantic Analysis)")
 	testArchiveURL := flag.String("test-archive-url", "", "Test archive detection for a specific URL")
 	flag.Parse()
 
@@ -49,7 +52,9 @@ func RunPipeline() {
 
 	// 2. Discover Portals with Multi-language Queries
 	crawler := NewCrawler("http://192.168.1.4:8080", *delayFlag)
-	fmt.Printf("Step 1: Discovering Portals (Global & Local) with delay %v...\n", *delayFlag)
+	
+	if !*analyzeOnlyFlag {
+		fmt.Printf("Step 1: Discovering Portals (Global & Local) with delay %v...\n", *delayFlag)
 
 	searchConfigs := []struct {
 		queries  []string
@@ -268,11 +273,12 @@ func RunPipeline() {
 	// 2.3 Systematic Homepage Discovery (Deep Crawling)
 	fmt.Println("\nStep 2.3: Systematic Homepage Discovery (Deep Crawling)...")
 	CrawlHomepages()
+	} // End of !*analyzeOnlyFlag block
 
 	// 3. Semantic Analysis
-	fmt.Println("Step 3: Semantic Analysis...")
+	fmt.Println("\nStep 3: Semantic Analysis...")
 	// Use a path that matches what Hugot creates to avoid redundant downloads
-	analyzer, err := NewAnalyzer("models/KnightsAnalytics_all-MiniLM-L6-v2", "models/KnightsAnalytics_distilbert-NER")
+	analyzer, err := NewAnalyzer("models/KnightsAnalytics_all-MiniLM-L6-v2", "../hugot-gliner2")
 	if err != nil {
 		log.Printf("Skip semantic analysis: %v", err)
 	} else {
@@ -288,16 +294,36 @@ func RunPipeline() {
 		if err != nil {
 			log.Printf("Error querying news for analysis: %v", err)
 		} else {
+			var count int32
+			var wg sync.WaitGroup
+			numWorkers := 8 // 8 hilos paralelos para exprimir la GPU
+			semaphore := make(chan struct{}, numWorkers)
+
 			for newsRows.Next() {
 				var mid int
 				var title, summary string
 				newsRows.Scan(&mid, &title, &summary)
 				text := title + " " + summary
 				if text != " " {
-					analyzer.AnalyzeNews(mid, text)
+					wg.Add(1)
+					semaphore <- struct{}{} // Adquirir token
+					
+					go func(id int, txt string) {
+						defer wg.Done()
+						defer func() { <-semaphore }() // Liberar token
+						
+						analyzer.AnalyzeNews(id, txt)
+						
+						newCount := atomic.AddInt32(&count, 1)
+						if newCount%100 == 0 {
+							fmt.Printf("\rProcesadas %d noticias concurrentemente (GPU Pool: %d)...", newCount, numWorkers)
+						}
+					}(mid, text)
 				}
 			}
-			newsRows.Close()
+			newsRows.Close() // Close early before waiting
+			wg.Wait()
+			fmt.Printf("\n¡Análisis completado! (%d noticias procesadas)\n", count)
 		}
 
 		// 5. Final Report: Heatmap / Similarity Dissection & Clustering

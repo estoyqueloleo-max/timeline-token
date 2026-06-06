@@ -1,13 +1,19 @@
 module timeline-token
 
-go 1.25.4
+go 1.24.3
+
+toolchain go1.24.4
 
 require (
 	github.com/PuerkitoBio/goquery v1.11.0
 	github.com/knights-analytics/hugot v0.6.2
 	github.com/mmcdole/gofeed v1.3.0
+	github.com/yalue/onnxruntime_go v1.25.0
+	hugot-gliner2 v0.0.0
 	modernc.org/sqlite v1.46.1
 )
+
+replace hugot-gliner2 => ../hugot-gliner2
 
 require (
 	github.com/andybalholm/cascadia v1.3.3 // indirect
@@ -40,7 +46,6 @@ require (
 	github.com/sugarme/tokenizer v0.3.0 // indirect
 	github.com/viant/afs v1.30.0 // indirect
 	github.com/x448/float16 v0.8.4 // indirect
-	github.com/yalue/onnxruntime_go v1.25.0 // indirect
 	golang.org/x/crypto v0.47.0 // indirect
 	golang.org/x/exp v0.0.0-20260112195511-716be5621a96 // indirect
 	golang.org/x/image v0.35.0 // indirect
@@ -48,6 +53,7 @@ require (
 	golang.org/x/sys v0.40.0 // indirect
 	golang.org/x/term v0.39.0 // indirect
 	golang.org/x/text v0.33.0 // indirect
+	gonum.org/v1/gonum v0.17.0 // indirect
 	google.golang.org/protobuf v1.36.11 // indirect
 	k8s.io/klog/v2 v2.130.1 // indirect
 	modernc.org/libc v1.67.6 // indirect

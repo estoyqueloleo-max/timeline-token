@@ -1,5 +1,8 @@
 # Roadmap & Próximos Pasos - Timeline Token
 
+- [x] **Soporte Intel GPU en GLiNER2**: Modificar el repositorio `hugot-gliner2` (`pkg/gliner/pipeline.go`) para que acepte opciones de ejecución ONNX (`AppendExecutionProviderOpenVINO`) y pueda delegar la carga en gráficas/CPUs de Intel vía OpenVINO.
+
+
 - **Uso de proxy's o Tor**: Para evitar el bloque do portales.
 outgoing:
   proxies:
