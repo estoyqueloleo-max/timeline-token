@@ -23,16 +23,18 @@ NEWS_TOOL_BIN="${SCRIPT_DIR}/news-tool"
 CRON_LOCK_FILE="/tmp/timeline-token-daily.lock"
 CRON_LOG_FILE="/tmp/timeline-token-cron.log"
 CRON_MARKER="# timeline-token-daily-autocheck"
+AUTO_GIT_SYNC="${AUTO_GIT_SYNC:-1}"
 
 usage() {
-    echo "Uso: $0 [start|stop|restart|status|serve|logs|daily-run|rebuild-concepts|cron-check|cron-install|cron-status|cron-remove]"
+    echo "Uso: $0 [start|stop|restart|status|serve|logs|daily-run|rebuild-concepts|sync-db|cron-check|cron-install|cron-status|cron-remove]"
     echo ""
     echo "Comandos:"
     echo "  start             Valida o arranca SearXNG (:${SEARXNG_PORT}), MCP y compila news-tool"
     echo "  serve             Compila (si hace falta) y arranca el dashboard agregado en :${WEB_PORT}"
     echo "  daily-run         Fuerza una pasada diaria completa (crawl + conceptos + GLiNER2 + YouTube)"
     echo "  rebuild-concepts  Recalcula conceptos cronológicos, GLiNER2 y YouTube sobre la BD actual"
-    echo "  cron-check        Validador idempotente para cron (flock + :${WEB_PORT} + --daily-check)"
+    echo "  sync-db           Hace commit (--only) y push de news_central.db.gz y semantic_map.html a GitHub"
+    echo "  cron-check        Validador idempotente para cron (flock + :${WEB_PORT} + --check-today + sync-db)"
     echo "  cron-install      Instala @reboot y chequeo horario en crontab del usuario"
     echo "  cron-status       Muestra las entradas cron instaladas y el historial daily_runs"
     echo "  cron-remove       Elimina las entradas de timeline-token del crontab"
@@ -235,18 +237,76 @@ stop_serve() {
     fi
 }
 
+sync_db_git() {
+    if [ "${AUTO_GIT_SYNC}" != "1" ]; then
+        echo "[$(date '+%Y-%m-%d %H:%M:%S')] AUTO_GIT_SYNC=0: omitiendo commit/push automático de BD."
+        return 0
+    fi
+    if ! git -C "${SCRIPT_DIR}" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+        echo "[$(date '+%Y-%m-%d %H:%M:%S')] Aviso: ${SCRIPT_DIR} no es un repositorio Git."
+        return 0
+    fi
+
+    local changed
+    changed=$(git -C "${SCRIPT_DIR}" status --porcelain -- news_central.db.gz semantic_map.html 2>/dev/null || true)
+    if [ -n "${changed}" ]; then
+        echo "[$(date '+%Y-%m-%d %H:%M:%S')] Detectados cambios en snapshot DB/visor. Preparando commit..."
+        git -C "${SCRIPT_DIR}" add -- news_central.db.gz semantic_map.html
+
+        if ! git -C "${SCRIPT_DIR}" diff --cached --quiet -- news_central.db.gz semantic_map.html; then
+            local summary=""
+            if [ -f "${SCRIPT_DIR}/news_central.db" ] && command -v python3 >/dev/null 2>&1; then
+                summary=$(python3 -c '
+import sqlite3
+try:
+    conn = sqlite3.connect("'"${SCRIPT_DIR}/news_central.db"'")
+    row = conn.execute("SELECT run_date, COALESCE(news_added,0), COALESCE(concepts_extracted,0), COALESCE(relations_extracted,0), COALESCE(youtube_videos_fetched,0) FROM daily_runs ORDER BY run_date DESC LIMIT 1").fetchone()
+    if row:
+        print(f"({row[0]}: news+{row[1]}, concepts={row[2]}, gliner={row[3]}, yt={row[4]})")
+except Exception:
+    pass
+' 2>/dev/null || true)
+            fi
+            local today_str commit_msg
+            today_str=$(date '+%Y-%m-%d')
+            commit_msg="chore(data): actualización diaria BD ${today_str}"
+            if [ -n "${summary}" ]; then
+                commit_msg="${commit_msg} ${summary}"
+            fi
+
+            git -C "${SCRIPT_DIR}" commit --only -m "${commit_msg}" -- news_central.db.gz semantic_map.html
+            echo "[$(date '+%Y-%m-%d %H:%M:%S')] ✓ Commit creado: ${commit_msg}"
+        fi
+    fi
+
+    local ahead=0
+    ahead=$(git -C "${SCRIPT_DIR}" rev-list --count origin/main..HEAD 2>/dev/null || echo "0")
+    if [ "${ahead}" -gt 0 ]; then
+        echo "[$(date '+%Y-%m-%d %H:%M:%S')] Haciendo git push origin main (${ahead} commit(s) pendiente(s))..."
+        if git -C "${SCRIPT_DIR}" push origin main; then
+            echo "[$(date '+%Y-%m-%d %H:%M:%S')] ✓ Snapshot subido a origin main (despliegue GitHub Pages activado)."
+        else
+            echo "[$(date '+%Y-%m-%d %H:%M:%S')] ⚠ No se pudo hacer git push ahora (se reintentará en el próximo chequeo)."
+        fi
+    else
+        echo "[$(date '+%Y-%m-%d %H:%M:%S')] Git al día con origin/main (sin cambios nuevos de BD que subir)."
+    fi
+}
+
 run_daily() {
     ensure_searxng
     ensure_mcp_binaries >/dev/null || true
     build_news_tool
     echo -e "\n${BLUE}=== Ejecutando pasada diaria completa (--daily-run) ===${NC}"
     (cd "${SCRIPT_DIR}" && SEARXNG_URL="http://localhost:${SEARXNG_PORT}" "${NEWS_TOOL_BIN}" --daily-run --delay=300ms)
+    sync_db_git
 }
 
 run_rebuild_concepts() {
     build_news_tool
     echo -e "\n${BLUE}=== Recalculando Conceptos + GLiNER2 + YouTube (--rebuild-concepts) ===${NC}"
     (cd "${SCRIPT_DIR}" && "${NEWS_TOOL_BIN}" --rebuild-concepts)
+    sync_db_git
 }
 
 cron_check() {
@@ -266,14 +326,16 @@ cron_check() {
         sleep 10
     fi
 
-    if (cd "${SCRIPT_DIR}" && "${NEWS_TOOL_BIN}" --daily-check 2>&1 | grep -q "Nada pendiente"); then
+    if (cd "${SCRIPT_DIR}" && "${NEWS_TOOL_BIN}" --check-today >/dev/null 2>&1); then
         echo "[$(date '+%Y-%m-%d %H:%M:%S')] Validación OK: hoy ya está completado en daily_runs."
+        sync_db_git
         return 0
     fi
 
     ensure_searxng
     ensure_mcp_binaries >/dev/null || true
     (cd "${SCRIPT_DIR}" && SEARXNG_URL="http://localhost:${SEARXNG_PORT}" "${NEWS_TOOL_BIN}" --daily-check --delay=300ms)
+    sync_db_git
     echo "[$(date '+%Y-%m-%d %H:%M:%S')] cron-check finalizado."
 }
 
@@ -482,6 +544,9 @@ case "${ACTION}" in
         ;;
     rebuild-concepts)
         run_rebuild_concepts
+        ;;
+    sync-db)
+        sync_db_git
         ;;
     cron-check)
         cron_check

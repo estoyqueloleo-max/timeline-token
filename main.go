@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net/url"
+	"os"
 	"strings"
 	"time"
 	"timeline-token/db"
@@ -52,6 +53,7 @@ func RunPipeline() {
 	mcpBinFlag := flag.String("mcp-bin", "", "Path to mcp-web-actor binary (optional)")
 
 	// New chronological, GLiNER2, YouTube & cron daily flags
+	checkTodayFlag := flag.Bool("check-today", false, "Only check if today is already completed in daily_runs (exit 0 if completed, exit 1 if pending)")
 	dailyCheckFlag := flag.Bool("daily-check", false, "Validate daily_runs for today; run daily pipeline only if not yet completed today")
 	dailyRunFlag := flag.Bool("daily-run", false, "Force full daily pipeline (incremental crawl + chronological concepts + GLiNER2 + YouTube)")
 	rebuildConceptsFlag := flag.Bool("rebuild-concepts", false, "Rebuild daily concepts, extract pending GLiNER2 relations and enrich YouTube without crawling")
@@ -94,6 +96,19 @@ func RunPipeline() {
 	if *serveFlag {
 		StartDashboardServer(srvCfg)
 		return
+	}
+
+	if *checkTodayFlag {
+		done, finishedAt, err := IsTodayCompleted(db.DB)
+		if err != nil {
+			log.Fatalf("Error checking daily_runs: %v", err)
+		}
+		if done {
+			fmt.Printf("[Daily Check] Hoy ya se completó la ejecución diaria (%s). Nada pendiente.\n", finishedAt)
+			return
+		}
+		fmt.Println("[Daily Check] Pendiente de ejecutar hoy.")
+		os.Exit(1)
 	}
 
 	if *dailyCheckFlag {
