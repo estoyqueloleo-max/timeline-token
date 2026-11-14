@@ -1,49 +1,19 @@
-# Roadmap & Próximos Pasos - Timeline Token
+# Roadmap & Estado - Timeline Token
 
-- **Uso de proxy's o Tor**: Para evitar el bloque do portales.
-outgoing:
-  proxies:
-    all: socks5h://localhost:9050  
-    http:
-      - http://usuario:password@ip_proxy2:puerto
-    https:
-      - http://usuario:password@ip_proxy2:puerto
+## ✅ Completado
 
-- **Mapa Semántico**: Alimentado por SQLite directamente (`sql.js`), interactivo, con zoom y panel de noticias lateral.
-- **Entidades Avanzadas**: Filtrado interactivo de 10 tipos de entidades (PER, LOC, ORG, DATE, MONEY, TIME, QUAN, URLL, EMAIL, MISC) con colores específicos. Boton para seleccionar/deseleccionar todos. Quizas quitar el negro para PER que serian los mas interesantes.
-- **Procesamiento Incremental**: Uso de `--resume` para evitar re-analizar noticias y portales ya procesados.
-- **Detección de Hemerotecas**: Lógica base con LLM, normalización de URLs y sistemas de fallback por reglas.
-- **Poder lanzar busquedas**: En hemerotecas sobre palabras clave para aumentar el "historial" de la misma.
+- **Fallback de Navegador vía MCP + Sitemaps (`mcp_bridge.go`, `crawler.go`)**: Soporte para `sitemap-news.xml` / `robots.txt` y conexión persistente `stdio` con `mcp-web-actor` (`extract_structured_news`) para medios con JS o bloqueos HTTP.
+- **Diagnósticos de Cobertura (`diagnostics.go`)**: Registro estructurado (`crawl_diagnostics.json`) de portales exitosos, bloqueos y fallos por estrategia.
+- **Integración Nativa `hugot-gliner2` (`gliner_relations.go`)**: Extracción de relaciones dirigidas hacia una lista configurable de relaciones (`DefaultNewsRelationLabels` / `relations_schema.json`) persistidas en `news_relations`.
+- **Timeline Cronológico y Burst Detection (`concepts_timeline.go`)**: Normalización diaria (`YYYY-MM-DD`), conteo multi-portal, detección de picos (`burst_score`) y marcado de conceptos políticos/democracia.
+- **Integración YouTube & Democracia (`youtube_democracia.go`)**: Conexión nativa con YouTube Data API v3 reutilizando credenciales de `youtube/democracia` y cálculo de **Outlier Ratio (`views / subscribers`)**.
+- **Dashboard Dual Agregado (`visualization.go`, `api_server.go`)**: Tres vistas unificadas (**Timeline Cronológico**, **Radar YouTube & Democracia**, **Grafo D3 GLiNER2 + Co-ocurrencia**) en `:8085` + modo estático con SQLite WASM (`sql.js`).
+- **Distribución Ligera en GitHub Pages (`db/db.go`, `.github/workflows/deploy.yml`)**: Compresión automática a `news_central.db.gz` (~12.5 MB sin Git LFS), autorrestauración local al iniciar y descompresión directa en navegador mediante `DecompressionStream('gzip')`.
+- **Cron Automático en Linux (`start-services.sh`, `main.go`)**: Validador idempotente `--check-today` / `daily_runs` (`@reboot` y `5 * * * *` con `flock`) más `sync_db_git` para confirmar (`commit --only`) y subir (`push`) los snapshots `.db.gz` y `semantic_map.html`.
 
-- **Filtro por Fecha**: No solo filtrar el desde, sino tambien el hasta. Usar fecha de escaneo, "mas real" y fecha extraida de la publicacion.
-- **Filtro por Portal**: Selector en la UI para aislar noticias de un medio específico.
-- **Relaciones Inter-Portal**: Visualizar cómo la misma noticia se trata en distintos medios.
-- **Opticion para exponer**: Version reducida de la bd para poderla subir a una web (si se necesita terminar de precalcular cosas, adelante) para que sea ligera sin info que no es necesaria en una primera visualizacion.
-- **Exportar Reporte**: Botón para descargar el grafo actual o la lista de noticias filtradas.
+## 🔜 Próximos Pasos
 
-- **Scrapers Específicos**: Refinar la extracción para sitios complejos con hemerotecas estructuradas (ej: El Mundo).
-- **Análisis de Sentimiento**: Añadir un código de colores al mapa para el tono de la noticia.
-- **Detección de Tendencias (Burst Detection)**: Algoritmo para identificar conceptos con crecimiento explosivo de frecuencia.
-
-
-
-
-
-Me gustaria subir esta carpeta (que esta dentro de otro repo) al siguiente repo...
-
-echo "# timeline-token" >> README.md
-git init
-git add README.md
-git commit -m "first commit"
-git branch -M main
-git remote add origin git@github.com-estoyqueloleo:estoyqueloleo-max/timeline-token.git
-git push -u origin main
-
-Me gustaria añadir en github un workflow para que el resultado (que dejare actualizado en la carpeta) de la bd y el html para visualizarlo se despligue en una github page del repo ... y se actualice el README para hacer referncia a ella como ejemplo resultante de la busqueda...
-
-La bd podria llegar a pesar bastante por lo que (mientras no la optimicemos) lo mismo es intersante usar git lfs...
-
-
-
-
-
+- **Uso de proxies o Tor en SearXNG/Crawler**: Rotación de IP o salida `socks5h://localhost:9050` para reducir bloqueos de portales con anti-bot estricto.
+- **Scrapers / Selectores Específicos**: Refinar reglas para hemerotecas estructuradas complejas.
+- **Análisis de Sentimiento y Polaridad**: Añadir puntuación de tono por noticia/concepto y colorear el grafo según polaridad.
+- **Exportación de Reportes**: Descargar subgrafos filtrados o resúmenes diarios en JSON/Markdown/PDF (con resúmenes opcionales por LLM local).
