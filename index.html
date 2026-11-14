@@ -2,783 +2,1429 @@
 <html lang="es">
 <head>
     <meta charset="utf-8">
-    <title>Timeline Token - Semantic Map</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Timeline Token × Radar Democracia</title>
     <style>
+        :root {
+            --bg: #0f1115;
+            --panel: #171a21;
+            --card: #1d212b;
+            --card-hover: #242936;
+            --border: #2c3342;
+            --text: #e6e9ef;
+            --muted: #98a2b3;
+            --accent: #38bdf8;
+            --teal: #2dd4bf;
+            --gold: #facc15;
+            --red: #f87171;
+            --orange: #fb923c;
+            --purple: #a78bfa;
+            --green: #4ade80;
+        }
+        * { box-sizing: border-box; }
         body, html {
             margin: 0;
             padding: 0;
-            width: 100vw;
-            height: 100vh;
-            overflow: hidden;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background-color: #121212;
-            color: #e0e0e0;
+            background: var(--bg);
+            color: var(--text);
+            font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
+            min-height: 100vh;
         }
-        #graph-container {
-            width: 100%;
-            height: 100%;
-            position: absolute;
-            top: 0; left: 0;
-            z-index: 1;
-        }
-        #controls {
-            position: absolute;
-            top: 20px;
-            left: 20px;
-            z-index: 100;
-            background: rgba(30, 30, 30, 0.9);
-            padding: 20px;
-            border-radius: 8px;
-            border: 1px solid #444;
-            width: 300px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
-            transition: transform 0.3s ease, opacity 0.3s ease;
-        }
-        #controls.collapsed {
-            transform: translateX(-340px);
-            opacity: 0;
-            pointer-events: none;
-        }
-        #toggle-controls {
-            position: absolute;
-            top: 20px;
-            left: 20px;
-            z-index: 110;
-            background: #69b3a2;
-            border: none;
-            color: #121212;
-            width: 40px;
-            height: 40px;
-            border-radius: 8px;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 1.2rem;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.3);
-        }
+        a { color: var(--accent); text-decoration: none; }
+        a:hover { text-decoration: underline; }
 
-        .control-group { margin-bottom: 20px; }
-        .control-group label { display: block; margin-bottom: 8px; font-weight: bold; color: #69b3a2; }
-        input[type="range"], input[type="text"], input[type="number"] {
-            width: 100%;
-            background: #2a2a2a;
-            border: 1px solid #444;
-            color: #fff;
-            padding: 8px;
-            border-radius: 4px;
-            box-sizing: border-box;
-        }
-        #date-display { font-size: 0.8rem; margin-top: 5px; color: #aaa; text-align: center; }
-        
-        #info-panel {
-            position: absolute;
+        /* Top Header */
+        header {
+            background: var(--panel);
+            border-bottom: 1px solid var(--border);
+            padding: 14px 24px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 14px;
+            align-items: center;
+            justify-content: space-between;
+            position: sticky;
             top: 0;
-            right: -400px;
-            width: 400px;
-            height: 100vh;
-            background: #1e1e1e;
-            box-shadow: -2px 0 10px rgba(0,0,0,0.5);
-            z-index: 101;
-            transition: right 0.3s ease;
+            z-index: 50;
+        }
+        .brand {
             display: flex;
             flex-direction: column;
-            box-sizing: border-box;
-            border-left: 1px solid #333;
+            gap: 4px;
         }
-        #info-panel.open { right: 0; }
-        #info-header {
-            padding: 15px 20px;
-            background: #252526;
-            border-bottom: 1px solid #333;
+        .brand h1 {
+            margin: 0;
+            font-size: 1.25rem;
+            letter-spacing: -0.02em;
+            color: #fff;
             display: flex;
-            justify-content: space-between;
+            align-items: center;
+            gap: 8px;
+        }
+        .stats-bar {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            font-size: 0.78rem;
+            color: var(--muted);
+        }
+        .stat-pill {
+            background: var(--card);
+            border: 1px solid var(--border);
+            padding: 3px 9px;
+            border-radius: 999px;
+        }
+        .stat-pill strong { color: #fff; }
+        .stat-pill.hot strong { color: var(--gold); }
+
+        .header-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
             align-items: center;
         }
-        #header-left { display: flex; align-items: center; gap: 10px; }
-        #info-header h2 { margin: 0; font-size: 1.2rem; color: #69b3a2; text-transform: uppercase; }
-        
-        .nav-btn { background: none; border: none; color: #aaa; font-size: 1.2rem; cursor: pointer; padding: 5px; border-radius: 4px; }
-        .nav-btn:hover { color: #fff; background: #444; }
-        .nav-btn:disabled { color: #444; cursor: default; background: none; }
-
-        #info-content { padding: 20px; overflow-y: auto; flex-grow: 1; }
-        
-        .article-entry { margin-bottom: 15px; padding: 10px; background: #2a2a2a; border-radius: 6px; border-left: 3px solid #69b3a2; }
-        .article-entry a { color: #fff; text-decoration: none; font-weight: bold; display: block; margin-bottom: 5px; line-height: 1.4; }
-        .article-entry a:hover { color: #4da6ff; }
-        .article-entry .meta { font-size: 0.8rem; color: #888; }
-        
-        /* Highlighting keywords within titles */
-        .kw-main { color: #ffeb3b; background: rgba(255, 235, 59, 0.2); padding: 0 2px; border-radius: 2px; }
-        .kw-neighbor { color: #69b3a2; background: rgba(105, 179, 162, 0.2); padding: 0 2px; border-radius: 2px; }
-
-        .links line { stroke: #555; stroke-opacity: 0.3; transition: stroke 0.3s, stroke-opacity 0.3s; }
-        .nodes circle { stroke: #222; stroke-width: 1.5px; cursor: pointer; transition: fill 0.3s, stroke 0.3s; }
-        
-        .nodes circle.dimmed { opacity: 0.2; }
-        .links line.dimmed { opacity: 0.05; }
-        .nodes circle.highlight-center { stroke: #ffeb3b !important; stroke-width: 4px !important; opacity: 1 !important; }
-        .nodes circle.highlight-neighbor { stroke: #69b3a2 !important; stroke-width: 2px !important; opacity: 1 !important; fill: #4da6ff !important; }
-        .links line.highlight-link { stroke: #ffeb3b !important; stroke-opacity: 1 !important; stroke-width: 3px !important; }
-
-        text { font-family: sans-serif; font-size: 12px; fill: #aaa; pointer-events: none; transition: opacity 0.3s; }
-        text.dimmed { opacity: 0.1; }
-        text.highlight-text { fill: #fff; font-weight: bold; opacity: 1 !important; font-size: 14px; }
-        
-            font-size: 1.5rem;
-            color: #69b3a2;
-        }
-        
-        /* Node Colors by Type (Extended) */
-        .node-per { fill: #ffeb3b !important; } /* Yellow - Persons */
-        .node-loc { fill: #4da6ff !important; } /* Blue - Places */
-        .node-org { fill: #4caf50 !important; } /* Green - Organizations */
-        .node-misc { fill: #ab47bc !important; } /* Purple - Misc */
-        .node-date { fill: #ff7043 !important; } /* Orange - Dates */
-        .node-money { fill: #ec407a !important; } /* Pink - Money */
-        .node-time { fill: #8d6e63 !important; } /* Brown - Time */
-        .node-quan { fill: #78909c !important; } /* Slate - Quantity */
-        .node-urll { fill: #d4e157 !important; } /* Lime - URLs */
-        .node-email { fill: #00bcd4 !important; } /* Cyan - Email */
-        .node-default { fill: #69b3a2 !important; } /* Default */
-
-        button#apply-btn {
-            width: 100%;
-            padding: 10px;
-            background: #69b3a2;
-            border: none;
-            color: #121212;
-            font-weight: bold;
-            border-radius: 4px;
+        button {
             cursor: pointer;
-            margin-top: 10px;
+            font-family: inherit;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            background: var(--card);
+            color: var(--text);
+            padding: 8px 13px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            transition: all 0.15s ease;
         }
-        button#apply-btn:hover { background: #569b8b; }
+        button:hover { background: var(--card-hover); border-color: #465066; }
+        button.primary {
+            background: var(--teal);
+            color: #091015;
+            border-color: var(--teal);
+        }
+        button.primary:hover { filter: brightness(1.08); }
+        button.accent {
+            background: #1e3a5f;
+            border-color: var(--accent);
+            color: #e0f2fe;
+        }
+        button.small { padding: 5px 10px; font-size: 0.78rem; }
+        button:disabled { opacity: 0.5; cursor: not-allowed; }
 
-        /* Range Slider CSS */
-        .range-slider-wrapper {
-            position: relative;
-            width: 100%;
-            height: 40px;
-            margin-top: 10px;
-        }
-        .slider-control-container {
-            position: relative;
-            height: 6px;
-            width: 100%;
-            background: #444;
-            border-radius: 3px;
-        }
-        .slider-track {
-            position: absolute;
-            height: 100%;
-            background: #69b3a2;
-            border-radius: 3px;
-            z-index: 1;
-        }
-        .range-input-container {
-            position: relative;
-        }
-        .range-input-container input {
-            position: absolute;
-            width: 100%;
-            top: -6px;
-            background: none;
-            pointer-events: none;
-            -webkit-appearance: none;
-            -moz-appearance: none;
-        }
-        input[type="range"]::-webkit-slider-thumb {
-            height: 18px;
-            width: 18px;
-            border-radius: 50%;
-            background: #69b3a2;
-            pointer-events: auto;
-            cursor: pointer;
-            box-shadow: 0 0 2px 0 #000;
-            -webkit-appearance: none;
-            border: 2px solid #1e1e1e;
-        }
-        input[type="range"]::-moz-range-thumb {
-            height: 18px;
-            width: 18px;
-            border: none;
-            border-radius: 50%;
-            background: #69b3a2;
-            pointer-events: auto;
-            cursor: pointer;
-            box-shadow: 0 0 2px 0 #000;
-            border: 2px solid #1e1e1e;
-        }
-
-        /* Collapsible Sections */
-        .collapsible-header {
-            cursor: pointer;
+        /* Tabs Bar */
+        nav.tabs {
+            background: var(--panel);
+            border-bottom: 1px solid var(--border);
+            padding: 0 24px;
             display: flex;
-            justify-content: space-between;
-            align-items: center;
-            background: #252526;
+            gap: 6px;
+            overflow-x: auto;
+        }
+        .tab-btn {
+            background: transparent;
+            border: none;
+            border-bottom: 3px solid transparent;
+            border-radius: 0;
+            padding: 12px 16px;
+            color: var(--muted);
+            font-size: 0.9rem;
+        }
+        .tab-btn:hover { color: #fff; background: rgba(255,255,255,0.03); }
+        .tab-btn.active {
+            color: var(--teal);
+            border-bottom-color: var(--teal);
+        }
+
+        main {
+            max-width: 1460px;
+            margin: 0 auto;
+            padding: 20px 24px 48px;
+        }
+        .view-pane { display: none; }
+        .view-pane.active { display: block; }
+
+        /* Date Ribbon */
+        .date-ribbon {
+            display: flex;
+            gap: 8px;
+            overflow-x: auto;
+            padding-bottom: 10px;
+            margin-bottom: 16px;
+        }
+        .date-chip {
+            flex: 0 0 auto;
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 10px;
             padding: 8px 12px;
-            border-radius: 4px;
-            margin-bottom: 5px;
-            border-left: 3px solid #69b3a2;
+            text-align: left;
+            min-width: 120px;
         }
-        .collapsible-header:hover { background: #333; }
-        .collapsible-header .toggle-icon { font-size: 0.8rem; transition: transform 0.3s; }
-        .collapsible-header.collapsed .toggle-icon { transform: rotate(-90deg); }
-        .collapsible-content { overflow: hidden; transition: max-height 0.3s ease-out; }
-        .collapsible-content.collapsed { max-height: 0 !important; }
+        .date-chip.active {
+            border-color: var(--teal);
+            background: rgba(45, 212, 191, 0.12);
+        }
+        .date-chip .d-day { font-weight: 700; color: #fff; font-size: 0.9rem; display: block; }
+        .date-chip .d-meta { font-size: 0.74rem; color: var(--muted); margin-top: 2px; display: block; }
 
-        .filter-actions {
+        /* Controls / Filter Bar */
+        .filter-toolbar {
             display: flex;
+            flex-wrap: wrap;
             gap: 10px;
-            margin-bottom: 8px;
-            font-size: 0.75rem;
+            align-items: center;
+            background: var(--panel);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 12px 16px;
+            margin-bottom: 18px;
         }
-        .filter-actions span {
-            color: #69b3a2;
-            cursor: pointer;
-            text-decoration: underline;
+        .filter-toolbar input[type="text"] {
+            flex: 1 1 240px;
+            background: var(--bg);
+            border: 1px solid var(--border);
+            color: #fff;
+            padding: 8px 12px;
+            border-radius: 8px;
+            font-size: 0.88rem;
         }
-        .filter-actions span:hover { color: #fff; }
+        .pill-toggle {
+            background: var(--card);
+            border: 1px solid var(--border);
+            color: var(--muted);
+            padding: 7px 12px;
+            border-radius: 999px;
+            font-size: 0.82rem;
+        }
+        .pill-toggle.active {
+            background: rgba(250, 204, 21, 0.14);
+            border-color: var(--gold);
+            color: var(--gold);
+        }
+
+        /* Concept Grid */
+        .concepts-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
+            gap: 16px;
+        }
+        .concept-card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            transition: border-color 0.15s;
+        }
+        .concept-card:hover { border-color: #465066; }
+        .concept-card.political { border-left: 4px solid var(--gold); }
+        .concept-head {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 10px;
+        }
+        .concept-title {
+            font-size: 1.08rem;
+            font-weight: 700;
+            color: #fff;
+            margin: 0;
+        }
+        .badges {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+        }
+        .badge {
+            font-size: 0.72rem;
+            font-weight: 700;
+            padding: 2px 8px;
+            border-radius: 999px;
+            border: 1px solid var(--border);
+            background: var(--bg);
+            color: var(--muted);
+        }
+        .badge.pol { color: var(--gold); border-color: rgba(250, 204, 21, 0.45); background: rgba(250, 204, 21, 0.08); }
+        .badge.burst { color: var(--orange); border-color: rgba(251, 146, 60, 0.45); background: rgba(251, 146, 60, 0.08); }
+        .badge.portals { color: var(--teal); border-color: rgba(45, 212, 191, 0.4); }
+        .badge.yt-hot { color: #fecaca; border-color: var(--red); background: rgba(248, 113, 113, 0.16); }
+
+        .rel-list {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+            background: rgba(15, 17, 21, 0.6);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 8px 10px;
+        }
+        .rel-row {
+            font-size: 0.8rem;
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 5px;
+        }
+        .rel-ent { color: #fff; font-weight: 600; }
+        .rel-edge {
+            background: rgba(56, 189, 248, 0.16);
+            color: var(--accent);
+            border: 1px solid rgba(56, 189, 248, 0.35);
+            border-radius: 6px;
+            padding: 1px 6px;
+            font-size: 0.74rem;
+        }
+
+        .headlines-list {
+            list-style: none;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+        .headlines-list li {
+            font-size: 0.83rem;
+            line-height: 1.35;
+            padding-left: 8px;
+            border-left: 2px solid var(--border);
+        }
+        .headlines-list li a { color: #dbeafe; }
+        .headlines-list .meta {
+            color: var(--muted);
+            font-size: 0.72rem;
+            margin-left: 6px;
+        }
+        .card-footer {
+            margin-top: auto;
+            padding-top: 8px;
+            border-top: 1px solid var(--border);
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        /* GLiNER2 dedicated strip */
+        .subpanel {
+            margin-top: 22px;
+            background: var(--panel);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 16px;
+        }
+        .subpanel h3 {
+            margin: 0 0 12px 0;
+            font-size: 0.98rem;
+            color: var(--teal);
+        }
+        .relations-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.83rem;
+        }
+        .relations-table th, .relations-table td {
+            text-align: left;
+            padding: 8px 10px;
+            border-bottom: 1px solid var(--border);
+        }
+        .relations-table th { color: var(--muted); font-weight: 600; }
+
+        /* YouTube Grid */
+        .yt-chips {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin-bottom: 14px;
+        }
+        .yt-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(310px, 1fr));
+            gap: 16px;
+        }
+        .yt-card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+        .yt-card.outlier-hit { border-color: var(--red); box-shadow: 0 0 0 1px rgba(248, 113, 113, 0.25); }
+        .yt-thumb-wrap { position: relative; aspect-ratio: 16/9; background: #000; }
+        .yt-thumb-wrap img { width: 100%; height: 100%; object-fit: cover; display: block; }
+        .yt-outlier-tag {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            background: rgba(15, 17, 21, 0.9);
+            color: var(--gold);
+            border: 1px solid var(--gold);
+            padding: 3px 8px;
+            border-radius: 999px;
+            font-size: 0.74rem;
+            font-weight: 700;
+        }
+        .yt-outlier-tag.super {
+            background: #991b1b;
+            color: #fff;
+            border-color: #fca5a5;
+        }
+        .yt-body { padding: 12px 14px; display: flex; flex-direction: column; gap: 6px; flex: 1; }
+        .yt-title { font-weight: 700; font-size: 0.92rem; line-height: 1.3; color: #fff; }
+        .yt-channel { font-size: 0.8rem; color: var(--muted); }
+        .yt-metrics {
+            margin-top: auto;
+            padding-top: 8px;
+            border-top: 1px solid var(--border);
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 6px;
+            font-size: 0.76rem;
+            color: var(--muted);
+        }
+        .yt-metrics strong { color: #fff; }
+
+        /* Graph View */
+        .graph-layout {
+            display: grid;
+            grid-template-columns: 1fr 360px;
+            gap: 16px;
+            height: 74vh;
+            min-height: 520px;
+        }
+        @media (max-width: 980px) {
+            .graph-layout { grid-template-columns: 1fr; height: auto; }
+            #graph-box { height: 480px; }
+        }
+        #graph-box {
+            background: var(--panel);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            position: relative;
+            overflow: hidden;
+        }
+        #graph-box svg { width: 100%; height: 100%; display: block; }
+        .graph-legend {
+            position: absolute;
+            bottom: 12px;
+            left: 12px;
+            background: rgba(15, 17, 21, 0.86);
+            border: 1px solid var(--border);
+            padding: 8px 12px;
+            border-radius: 8px;
+            font-size: 0.74rem;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        .graph-sidebar {
+            background: var(--panel);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 14px;
+            overflow-y: auto;
+        }
+        .empty-state {
+            padding: 36px;
+            text-align: center;
+            color: var(--muted);
+            background: var(--panel);
+            border: 1px dashed var(--border);
+            border-radius: 12px;
+        }
+        .banner-status {
+            font-size: 0.82rem;
+            padding: 8px 12px;
+            border-radius: 8px;
+            margin-bottom: 14px;
+            border: 1px solid rgba(56, 189, 248, 0.4);
+            background: rgba(56, 189, 248, 0.08);
+            color: #bae6fd;
+            display: none;
+        }
     </style>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.8.0/sql-wasm.js"></script>
     <script src="https://d3js.org/d3.v7.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.8.0/sql-wasm.js"></script>
 </head>
 <body>
 
-<div id="loading">Cargando datos...</div>
+<header>
+    <div class="brand">
+        <h1>⏱️ Timeline Token × Democracia Radar</h1>
+        <div class="stats-bar" id="stats-bar">
+            <span class="stat-pill">Cargando métricas...</span>
+        </div>
+    </div>
+    <div class="header-actions">
+        <button id="btn-wasm-mode" onclick="toggleStaticMode()">📦 Visor .db.gz (WASM)</button>
+        <input type="file" id="db-file-input" accept=".db,.sqlite,.gz" style="display:none" onchange="handleLocalDBFile(event)">
+        <button id="btn-open-db" onclick="document.getElementById('db-file-input').click()">📂 Abrir .db/.gz</button>
+        <button id="btn-rebuild" class="accent" onclick="triggerJob('rebuild')">⚡ Recalcular Conceptos + GLiNER2</button>
+        <button id="btn-daily" class="primary" onclick="triggerJob('daily')">🔄 Ejecutar Pasada Diaria</button>
+    </div>
+</header>
 
-<button id="toggle-controls" title="Mostrar/Ocultar Filtros">⚙️</button>
+<nav class="tabs">
+    <button class="tab-btn active" data-tab="timeline" onclick="switchTab('timeline')">📅 Timeline Cronológico</button>
+    <button class="tab-btn" data-tab="youtube" onclick="switchTab('youtube')">🎬 Radar YouTube & Democracia</button>
+    <button class="tab-btn" data-tab="graph" onclick="switchTab('graph')">🕸️ Grafo GLiNER2 & Mapa Semántico</button>
+</nav>
 
-<div id="controls">
-    <div class="control-group">
-        <label>Filtro Temporal (Rango)</label>
-        <div class="range-slider-wrapper">
-            <div class="slider-control-container">
-                <div id="slider-track" class="slider-track"></div>
-            </div>
-            <div class="range-input-container">
-                <input type="range" id="date-slider-min" min="0" max="100" value="0">
-                <input type="range" id="date-slider-max" min="0" max="100" value="100">
-            </div>
-        </div>
-        <div id="date-display" style="margin-top: 15px; font-size: 0.8rem; color: #aaa; text-align: center;">...</div>
-        <div style="display: flex; flex-direction: column; gap: 5px; margin-top: 10px;">
-            <div style="font-size: 0.7rem; color: #888;">Inicio:</div>
-            <input type="datetime-local" id="date-input-min" style="font-size: 0.8rem; padding: 4px;">
-            <div style="font-size: 0.7rem; color: #888;">Fin:</div>
-            <input type="datetime-local" id="date-input-max" style="font-size: 0.8rem; padding: 4px;">
-        </div>
-    </div>
-    <div class="control-group">
-        <label>Buscar Palabra</label>
-        <input type="text" id="search-input" placeholder="Ej: economía, guerra...">
-    </div>
-    <div class="control-group">
-        <div class="collapsible-header" onclick="toggleSection('region-section')">
-            <span>Filtro por Región</span>
-            <span class="toggle-icon">▼</span>
-        </div>
-        <div id="region-section" class="collapsible-content" style="max-height: 500px;">
-            <div class="filter-actions">
-                <span onclick="selectAll('region-filters', true)">Todos</span>
-                <span onclick="selectAll('region-filters', false)">Ninguno</span>
-            </div>
-            <div id="region-filters" style="display: grid; grid-template-columns: 1fr 1fr; gap: 5px; font-size: 0.8rem; margin-bottom: 10px;">
-                <!-- Dinámicamente poblado -->
-            </div>
-        </div>
-    </div>
-    <div class="control-group">
-        <div class="collapsible-header" onclick="toggleSection('entity-section')">
-            <span>Filtro de Entidades</span>
-            <span class="toggle-icon">▼</span>
-        </div>
-        <div id="entity-section" class="collapsible-content" style="max-height: 500px;">
-            <div class="filter-actions">
-                <span onclick="selectAll('entity-filters', true)">Todos</span>
-                <span onclick="selectAll('entity-filters', false)">Ninguno</span>
-            </div>
-            <div id="entity-filters" style="display: grid; grid-template-columns: 1fr 1fr; gap: 5px; font-size: 0.8rem;">
-                <label style="font-weight: normal; color: #ffeb3b;"><input type="checkbox" value="PER"> Pers</label>
-                <label style="font-weight: normal; color: #4da6ff;"><input type="checkbox" value="LOC"> Lugares</label>
-                <label style="font-weight: normal; color: #4caf50;"><input type="checkbox" value="ORG"> Orgs</label>
-                <label style="font-weight: normal; color: #ab47bc;"><input type="checkbox" value="MISC"> Misc</label>
-                <label style="font-weight: normal; color: #ff7043;"><input type="checkbox" value="DATE"> Fechas</label>
-                <label style="font-weight: normal; color: #ec407a;"><input type="checkbox" value="MONEY"> Dinero</label>
-                <label style="font-weight: normal; color: #8d6e63;"><input type="checkbox" value="TIME"> Hora</label>
-                <label style="font-weight: normal; color: #78909c;"><input type="checkbox" value="QUAN"> Cant</label>
-                <label style="font-weight: normal; color: #d4e157;"><input type="checkbox" value="URLL"> Link</label>
-                <label style="font-weight: normal; color: #00bcd4;"><input type="checkbox" value="EMAIL"> Correo</label>
-                <label style="font-weight: normal; color: #69b3a2;"><input type="checkbox" value="default"> Otros</label>
-            </div>
-        </div>
-    </div>
-    <button id="apply-btn">Aplicar Filtros</button>
-</div>
+<main>
+    <div id="job-banner" class="banner-status"></div>
 
-<div id="graph-container">
-    <svg width="100%" height="100%"></svg>
-</div>
+    <!-- VIEW 1: CHRONOLOGICAL TIMELINE -->
+    <section id="view-timeline" class="view-pane active">
+        <div id="date-ribbon" class="date-ribbon"></div>
 
-<div id="info-panel">
-    <div id="info-header">
-        <div id="header-left">
-            <button id="back-btn" class="nav-btn" title="Volver atrás" disabled>⬅</button>
-            <h2 id="node-title">Word</h2>
+        <div class="filter-toolbar">
+            <input type="text" id="tl-search" placeholder="Filtrar concepto o titular (ej: España, Constitución, Irán, Trump)..." onkeydown="if(event.key==='Enter') loadTimeline()">
+            <button id="btn-pol-filter" class="pill-toggle" onclick="togglePoliticalFilter()">🎯 Solo Política / Democracia</button>
+            <button onclick="loadTimeline()">Buscar</button>
         </div>
-        <button id="close-btn" class="nav-btn" title="Cerrar">&times;</button>
-    </div>
-    <div id="info-content"></div>
-</div>
+
+        <div id="concepts-grid" class="concepts-grid"></div>
+
+        <div class="subpanel">
+            <h3>🤝 Relaciones Extraídas por GLiNER2 en la Fecha Seleccionada</h3>
+            <div id="day-relations-container"></div>
+        </div>
+    </section>
+
+    <!-- VIEW 2: YOUTUBE & DEMOCRACIA OUTLIER RADAR -->
+    <section id="view-youtube" class="view-pane">
+        <div class="filter-toolbar">
+            <input type="text" id="yt-concept-input" placeholder="Buscar concepto de actualidad en YouTube (ej: Democracia España, Aranceles, Irán)..." onkeydown="if(event.key==='Enter') loadYouTube(true)">
+            <button id="btn-yt-outliers" class="pill-toggle" onclick="toggleOutliersOnly()">🔥 Solo Outliers (&ge; 5x visitas/subs)</button>
+            <button onclick="loadYouTube(false)">Filtrar caché</button>
+            <button id="btn-yt-live" class="primary" onclick="loadYouTube(true)">🎬 Buscar en vivo (YouTube API)</button>
+        </div>
+        <div class="yt-chips" id="yt-quick-chips"></div>
+        <div id="yt-error-box" class="banner-status"></div>
+        <div id="yt-grid" class="yt-grid"></div>
+    </section>
+
+    <!-- VIEW 3: GRAPH -->
+    <section id="view-graph" class="view-pane">
+        <div class="filter-toolbar">
+            <input type="text" id="graph-search" placeholder="Filtrar nodo o relación..." onkeydown="if(event.key==='Enter') loadGraph()">
+            <button id="btn-graph-pol" class="pill-toggle" onclick="toggleGraphPol()">🎯 Solo Política / Democracia</button>
+            <button onclick="loadGraph()">Actualizar Grafo</button>
+        </div>
+        <div class="graph-layout">
+            <div id="graph-box">
+                <svg id="d3-svg"></svg>
+                <div class="graph-legend">
+                    <span><strong style="color:#facc15;">●</strong> Político / Institucional</span>
+                    <span><strong style="color:#38bdf8;">●</strong> Entidad GLiNER2</span>
+                    <span><strong style="color:#2dd4bf;">●</strong> Concepto del Día</span>
+                    <span><strong style="color:#fb923c;">━━▶</strong> Relación GLiNER2</span>
+                    <span><strong style="color:#64748b;">━━</strong> Co-ocurrencia</span>
+                </div>
+            </div>
+            <aside class="graph-sidebar" id="graph-sidebar">
+                <h3 style="margin-top:0;color:var(--teal);">Inspector de Nodo / Relaciones</h3>
+                <p style="color:var(--muted);font-size:0.85rem;">Haz clic en cualquier nodo del grafo para inspeccionar sus relaciones dirigidas y buscar vídeos en YouTube.</p>
+            </aside>
+        </div>
+    </section>
+</main>
 
 <script>
-    const stopwords = new Set(["de","la","que","el","en","y","a","los","del","se","las","por","un","para","con","no","una","su","al","lo","como","más","pero","sus","le","the","of","and","to","in","for","is","on","that","by","this","with","i","you","it","not","or","be","are","from","at","as","your","all","have","new","more","an","was","we","will","home","can","us","about","if","page","my","has","search","free","sobre","este","ya","sus","muy","sin","sobre","ha","han","he","hemos","hay","eso","esta","esto"]);
-    
-    let db;
-    let allNews = [];
-    let wordTypes = {};
-    let simulation, svg, container;
-    let nodeSelection, linkSelection, textSelection;
-    let globalLinks = [];
-    let wordToArticlesMap = {};
-    
-    let clickHistory = [];
-    let currentHighlightedNeighbors = new Set();
+    let state = {
+        selectedDate: '',
+        onlyPolitical: false,
+        onlyOutliers: false,
+        graphOnlyPolitical: false,
+        currentTab: 'timeline',
+        availableDates: [],
+        lastTimelineConcepts: [],
+        lastDayRelations: [],
+        jobTimer: null,
+        staticMode: false,
+        apiAvailable: false,
+        sqlDB: null,
+        wasmBannerText: ''
+    };
 
-    const MIN_COUNT = 3;
-    const MIN_CO_OCCURRENCE = 2;
+    function esc(s) {
+        if (!s) return '';
+        return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
 
-    async function init() {
+    function fmtNum(n) {
+        return Number(n || 0).toLocaleString('es-ES');
+    }
+
+    function switchTab(tab) {
+        state.currentTab = tab;
+        document.querySelectorAll('.tab-btn').forEach(b => {
+            b.classList.toggle('active', b.dataset.tab === tab);
+        });
+        document.querySelectorAll('.view-pane').forEach(p => {
+            p.classList.toggle('active', p.id === 'view-' + tab);
+        });
+        if (tab === 'youtube') loadYouTube(false);
+        if (tab === 'graph') loadGraph();
+    }
+
+    async function decompressGzipIfNeeded(arrayBuffer, label) {
+        let u8 = new Uint8Array(arrayBuffer);
+        if (u8.length >= 2 && u8[0] === 0x1f && u8[1] === 0x8b) {
+            if (typeof DecompressionStream === 'undefined') {
+                throw new Error('Tu navegador no soporta DecompressionStream("gzip"). Usa Chrome/Edge/Firefox moderno.');
+            }
+            const ds = new DecompressionStream('gzip');
+            const stream = new Blob([u8]).stream().pipeThrough(ds);
+            const outBuf = await new Response(stream).arrayBuffer();
+            u8 = new Uint8Array(outBuf);
+        }
+        // Validate "SQLite" header bytes
+        if (u8.length < 16 || u8[0] !== 0x53 || u8[1] !== 0x51 || u8[2] !== 0x4c || u8[3] !== 0x69 || u8[4] !== 0x74 || u8[5] !== 0x65) {
+            throw new Error('El archivo no es una base SQLite válida (' + (label || 'snapshot') + ')');
+        }
+        return u8;
+    }
+
+    function syncModeUI() {
+        const isStatic = state.staticMode;
+        const btnRebuild = document.getElementById('btn-rebuild');
+        const btnDaily = document.getElementById('btn-daily');
+        const btnYtLive = document.getElementById('btn-yt-live');
+        const btnWasm = document.getElementById('btn-wasm-mode');
+        const banner = document.getElementById('job-banner');
+
+        if (btnRebuild) btnRebuild.style.display = isStatic ? 'none' : '';
+        if (btnDaily) btnDaily.style.display = isStatic ? 'none' : '';
+        if (btnYtLive) btnYtLive.style.display = isStatic ? 'none' : '';
+
+        if (btnWasm) {
+            if (isStatic) {
+                btnWasm.innerText = state.apiAvailable ? '🌐 Volver a API Local' : '🔄 Recargar .db.gz';
+                btnWasm.classList.add('accent');
+            } else {
+                btnWasm.innerText = '📦 Visor .db.gz (WASM)';
+                btnWasm.classList.remove('accent');
+            }
+        }
+
+        if (isStatic && state.wasmBannerText) {
+            banner.style.display = 'block';
+            banner.innerText = state.wasmBannerText;
+        }
+    }
+
+    async function initStaticSQLite(customBytes, sourceLabel) {
+        const banner = document.getElementById('job-banner');
+        const label = sourceLabel || 'news_central.db.gz';
+        banner.style.display = 'block';
+        banner.innerText = '⏳ Descargando y descomprimiendo ' + label + ' en el navegador (SQLite WASM)...';
+
+        if (state.jobTimer) {
+            clearInterval(state.jobTimer);
+            state.jobTimer = null;
+        }
+
+        const SQL = await initSqlJs({
+            locateFile: file => 'https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.8.0/' + file
+        });
+
+        let rawBuf;
+        let actualName = label;
+        if (customBytes) {
+            rawBuf = customBytes;
+        } else {
+            let res = await fetch('news_central.db.gz');
+            if (!res.ok) {
+                actualName = 'news_central.db';
+                res = await fetch('news_central.db');
+            }
+            if (!res.ok) {
+                throw new Error('No se pudo descargar news_central.db.gz ni news_central.db (HTTP ' + res.status + ')');
+            }
+            rawBuf = await res.arrayBuffer();
+        }
+
+        const compressedBytes = rawBuf.byteLength;
+        const dbBytes = await decompressGzipIfNeeded(rawBuf, actualName);
+
+        if (state.sqlDB) {
+            try { state.sqlDB.close(); } catch (_) {}
+        }
+        state.sqlDB = new SQL.Database(dbBytes);
+        state.staticMode = true;
+
+        const compMB = (compressedBytes / (1024 * 1024)).toFixed(2);
+        const rawMB = (dbBytes.byteLength / (1024 * 1024)).toFixed(2);
+        state.wasmBannerText = '📦 Modo Visor Estático (SQLite WASM): ' + actualName + ' descomprimido en navegador (' + compMB + ' MB → ' + rawMB + ' MB)';
+        syncModeUI();
+    }
+
+    async function toggleStaticMode() {
         try {
-            const sqlPromise = initSqlJs({ locateFile: file => 'https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.8.0/' + file });
-            const dataPromise = fetch("news_central.db").then(res => res.arrayBuffer());
-            const [SQL, buf] = await Promise.all([sqlPromise, dataPromise]);
-            db = new SQL.Database(new Uint8Array(buf));
-
-            const stmt = db.prepare("SELECT id, title, url, COALESCE(published_date, created_at) as published_date, COALESCE(region, 'global') as region FROM news WHERE title IS NOT NULL ORDER BY published_date DESC");
-            while(stmt.step()) { allNews.push(stmt.getAsObject()); }
-            stmt.free();
-            
-            const entStmt = db.prepare("SELECT word, type, COUNT(*) as c FROM news_entities GROUP BY word, type ORDER BY c DESC");
-            while(entStmt.step()) {
-                const row = entStmt.getAsObject();
-                if (!wordTypes[row.word]) wordTypes[row.word] = row.type;
-            }
-            entStmt.free();
-            
-            // Populate region filters
-            const regions = [...new Set(allNews.map(n => n.region).filter(r => r))].sort();
-            const regionContainer = document.getElementById("region-filters");
-            regions.forEach(reg => {
-                const label = document.createElement("label");
-                label.style.fontWeight = "normal";
-                label.style.color = "#aaa";
-                label.innerHTML = '<input type="checkbox" value="' + reg + '"> ' + reg;
-                regionContainer.appendChild(label);
-            });
-
-            if (allNews.length > 0) {
-                const dates = allNews.map(n => new Date(n.published_date).getTime()).filter(d => !isNaN(d));
-                const minDateVal = Math.min(...dates);
-                const maxDateVal = Math.max(...dates);
-                
-                const sliderMin = document.getElementById("date-slider-min");
-                const sliderMax = document.getElementById("date-slider-max");
-                
-                // Default to last 24 hours or min if less than 24h of data
-                const last24h = maxDateVal - (24 * 60 * 60 * 1000);
-                const initialStart = Math.max(minDateVal, last24h);
-
-                sliderMin.min = minDateVal; sliderMin.max = maxDateVal; sliderMin.value = initialStart;
-                sliderMax.min = minDateVal; sliderMax.max = maxDateVal; sliderMax.value = maxDateVal;
-                
-                updateDateDisplay(initialStart, maxDateVal);
-            }
-
-            svg = d3.select("svg");
-            container = svg.append("g");
-            
-            const zoom = d3.zoom().scaleExtent([0.1, 4]).on("zoom", (e) => container.attr("transform", e.transform));
-            svg.call(zoom);
-
-            svg.on("click", (event) => {
-                if (event.target.tagName === "svg") {
-                    resetHighlight();
+            if (state.staticMode) {
+                if (state.apiAvailable) {
+                    state.staticMode = false;
+                    state.selectedDate = '';
+                    syncModeUI();
+                    await loadOverview();
+                    await loadTimeline();
+                    if (state.currentTab === 'youtube') await loadYouTube(false);
+                    if (state.currentTab === 'graph') await loadGraph();
+                } else {
+                    await initStaticSQLite();
+                    state.selectedDate = '';
+                    await loadOverview();
+                    await loadTimeline();
+                    if (state.currentTab === 'youtube') await loadYouTube(false);
+                    if (state.currentTab === 'graph') await loadGraph();
                 }
-            });
-
-            document.getElementById("toggle-controls").addEventListener("click", () => {
-                document.getElementById("controls").classList.toggle("collapsed");
-            });
-
-            document.getElementById("back-btn").addEventListener("click", goBack);
-
-            document.getElementById("loading").style.display = "none";
-            updateGraph();
-
+            } else {
+                await initStaticSQLite();
+                state.selectedDate = '';
+                await loadOverview();
+                await loadTimeline();
+                if (state.currentTab === 'youtube') await loadYouTube(false);
+                if (state.currentTab === 'graph') await loadGraph();
+            }
         } catch (err) {
-            document.getElementById("loading").innerText = "Error: " + err;
+            alert('Error cambiando a visor WASM .db.gz: ' + err);
             console.error(err);
         }
     }
 
-    function updateDateDisplay(min, max) {
-        const start = new Date(min).toLocaleDateString();
-        const end = new Date(max).toLocaleDateString();
-        document.getElementById("date-display").innerText = "Rango: " + start + " - " + end;
-        
-        // Update slider track
-        const sliderMin = document.getElementById("date-slider-min");
-        const sliderMax = document.getElementById("date-slider-max");
-        const track = document.getElementById("slider-track");
-        
-        const minVal = parseInt(sliderMin.min);
-        const maxVal = parseInt(sliderMin.max);
-        const range = maxVal - minVal;
-        
-        if (range > 0) {
-            const leftPerc = ((parseInt(sliderMin.value) - minVal) / range) * 100;
-            const rightPerc = ((parseInt(sliderMax.value) - minVal) / range) * 100;
-            track.style.left = leftPerc + "%";
-            track.style.width = (rightPerc - leftPerc) + "%";
+    async function handleLocalDBFile(event) {
+        const file = event.target.files && event.target.files[0];
+        if (!file) return;
+        try {
+            const buf = await file.arrayBuffer();
+            await initStaticSQLite(buf, file.name);
+            state.selectedDate = '';
+            await loadOverview();
+            await loadTimeline();
+            if (state.currentTab === 'youtube') await loadYouTube(false);
+            if (state.currentTab === 'graph') await loadGraph();
+        } catch (err) {
+            alert('No se pudo abrir ' + file.name + ': ' + err);
+            console.error(err);
+        } finally {
+            event.target.value = '';
         }
-
-        // Update manual inputs
-        document.getElementById("date-input-min").value = toIsoStringWithOffset(new Date(min));
-        document.getElementById("date-input-max").value = toIsoStringWithOffset(new Date(max));
     }
 
-    function toIsoStringWithOffset(date) {
-        const tzo = -date.getTimezoneOffset();
-        const dif = tzo >= 0 ? '+' : '-';
-        const pad = (num) => (num < 10 ? '0' : '') + num;
-        return date.getFullYear() +
-            '-' + pad(date.getMonth() + 1) +
-            '-' + pad(date.getDate()) +
-            'T' + pad(date.getHours()) +
-            ':' + pad(date.getMinutes());
+    function sqlAll(query, params) {
+        if (!state.sqlDB) return [];
+        const stmt = state.sqlDB.prepare(query);
+        try {
+            if (params && params.length > 0) stmt.bind(params);
+            const rows = [];
+            while (stmt.step()) {
+                rows.push(stmt.getAsObject());
+            }
+            return rows;
+        } catch (e) {
+            console.warn('SQLite WASM query warning:', e, query);
+            return [];
+        } finally {
+            stmt.free();
+        }
     }
 
-    const MIN_GAP_MS = 60 * 60 * 1000; // 1 hour gap
+    function sqlScalar(query, params, fallback) {
+        const rows = sqlAll(query, params);
+        if (!rows || rows.length === 0) return fallback;
+        const first = rows[0];
+        const keys = Object.keys(first);
+        return keys.length > 0 ? first[keys[0]] : fallback;
+    }
 
-    document.getElementById("date-slider-min").addEventListener("input", (e) => {
-        let minVal = parseInt(e.target.value);
-        let maxVal = parseInt(document.getElementById("date-slider-max").value);
-        
-        if (minVal > maxVal - MIN_GAP_MS) {
-            minVal = maxVal - MIN_GAP_MS;
-            e.target.value = minVal;
+    const POL_HINTS = ['democracia','eleccion','congreso','parlamento','senado','gobierno','partido','ley','tribunal','constitucion','constitución','españa','espana','estados unidos','ee uu','eeuu','ue','union europea','unión europea','otan','onu','ucrania','rusia','china','iran','irán','israel','trump','sanchez','sánchez','feijoo','abascal','pp','psoe','vox','sumar','podemos','junts','erc','pnv','arancel','aranceles','inflacion','inflación','guerra','corrupcion','corrupción','juez','fiscalia','fiscalía'];
+    function isPoliticalHeuristic(label) {
+        const low = (label || '').toLowerCase();
+        return POL_HINTS.some(k => low.includes(k));
+    }
+
+    function staticGetOverview() {
+        const dates = sqlAll(
+            'SELECT dc.event_date as date, COUNT(*) as concepts, COALESCE(SUM(dc.news_count), 0) as news_hits, ' +
+            'COALESCE((SELECT COUNT(*) FROM news_relations nr WHERE nr.event_date = dc.event_date), 0) as relations ' +
+            'FROM daily_concepts dc GROUP BY dc.event_date ORDER BY dc.event_date DESC LIMIT 45'
+        );
+        const daily_runs = sqlAll(
+            "SELECT run_date, status, COALESCE(CAST(started_at AS TEXT), '') as started_at, " +
+            "COALESCE(CAST(finished_at AS TEXT), '') as finished_at, COALESCE(portals_ok, 0) as portals_ok, " +
+            "COALESCE(news_added, 0) as news_added, COALESCE(concepts_extracted, 0) as concepts_extracted, " +
+            "COALESCE(relations_extracted, 0) as relations_extracted, COALESCE(youtube_videos_fetched, 0) as youtube_videos_fetched, " +
+            "COALESCE(notes, '') as notes FROM daily_runs ORDER BY run_date DESC LIMIT 15"
+        );
+        return {
+            stats: {
+                news: Number(sqlScalar('SELECT COUNT(*) FROM news', [], 0)) || 0,
+                portals: Number(sqlScalar('SELECT COUNT(*) FROM portals', [], 0)) || 0,
+                concepts: Number(sqlScalar('SELECT COUNT(*) FROM daily_concepts', [], 0)) || 0,
+                relations: Number(sqlScalar('SELECT COUNT(*) FROM news_relations', [], 0)) || 0,
+                yt_videos: Number(sqlScalar('SELECT COUNT(*) FROM youtube_concept_videos', [], 0)) || 0,
+                outliers: Number(sqlScalar('SELECT COUNT(*) FROM youtube_concept_videos WHERE outlier_ratio >= 5.0', [], 0)) || 0
+            },
+            dates: dates,
+            daily_runs: daily_runs,
+            job: { running: false, mode: '', started_at: '' }
+        };
+    }
+
+    function staticGetTimeline(selDate, onlyPol, q) {
+        let d = (selDate || '').trim();
+        if (!d) {
+            d = String(sqlScalar("SELECT COALESCE(MAX(event_date), '') FROM daily_concepts", [], '') || '');
         }
-        updateDateDisplay(minVal, maxVal);
-    });
-    
-    document.getElementById("date-slider-max").addEventListener("input", (e) => {
-        let minVal = parseInt(document.getElementById("date-slider-min").value);
-        let maxVal = parseInt(e.target.value);
-        
-        if (maxVal < minVal + MIN_GAP_MS) {
-            maxVal = minVal + MIN_GAP_MS;
-            e.target.value = maxVal;
+        let sql =
+            "SELECT dc.event_date, dc.concept, COALESCE(dc.entity_type, 'TOP') as entity_type, " +
+            "dc.news_count, dc.portal_count, dc.burst_score, " +
+            "COALESCE(dc.sample_titles, '[]') as sample_titles, COALESCE(dc.top_relations, '[]') as top_relations, " +
+            "COALESCE(dc.is_political, 0) as is_political, " +
+            "COALESCE((SELECT COUNT(*) FROM youtube_concept_videos yv WHERE lower(yv.concept) = lower(dc.concept)), 0) as youtube_count, " +
+            "COALESCE((SELECT MAX(outlier_ratio) FROM youtube_concept_videos yv WHERE lower(yv.concept) = lower(dc.concept)), 0) as max_outlier " +
+            "FROM daily_concepts dc WHERE 1=1";
+        const params = [];
+        if (d && d !== 'all') {
+            sql += ' AND dc.event_date = ?';
+            params.push(d);
         }
-        updateDateDisplay(minVal, maxVal);
-    });
+        if (onlyPol) {
+            sql += ' AND dc.is_political = 1';
+        }
+        if (q) {
+            sql += ' AND (lower(dc.concept) LIKE ? OR lower(dc.sample_titles) LIKE ?)';
+            const like = '%' + q.toLowerCase() + '%';
+            params.push(like, like);
+        }
+        sql += ' ORDER BY dc.event_date DESC, (dc.portal_count * 4 + dc.news_count + dc.burst_score * 2) DESC LIMIT 120';
 
-    document.getElementById("date-input-min").addEventListener("change", (e) => {
-        const newDate = new Date(e.target.value).getTime();
-        if (isNaN(newDate)) return;
-        
-        const sliderMin = document.getElementById("date-slider-min");
-        const sliderMax = document.getElementById("date-slider-max");
-        const currentMax = parseInt(sliderMax.value);
-        const totalMin = parseInt(sliderMin.min);
-        
-        let finalDate = Math.max(totalMin, Math.min(newDate, currentMax - MIN_GAP_MS));
-        sliderMin.value = finalDate;
-        updateDateDisplay(finalDate, currentMax);
-    });
-
-    document.getElementById("date-input-max").addEventListener("change", (e) => {
-        const newDate = new Date(e.target.value).getTime();
-        if (isNaN(newDate)) return;
-
-        const sliderMin = document.getElementById("date-slider-min");
-        const sliderMax = document.getElementById("date-slider-max");
-        const currentMin = parseInt(sliderMin.value);
-        const totalMax = parseInt(sliderMax.max);
-        
-        let finalDate = Math.min(totalMax, Math.max(newDate, currentMin + MIN_GAP_MS));
-        sliderMax.value = finalDate;
-        updateDateDisplay(currentMin, finalDate);
-    });
-
-    document.getElementById("apply-btn").addEventListener("click", updateGraph);
-
-    function updateGraph() {
-        const minDate = parseInt(document.getElementById("date-slider-min").value);
-        const maxDate = parseInt(document.getElementById("date-slider-max").value);
-        const searchText = document.getElementById("search-input").value.toLowerCase().trim();
-        const selectedRegions = new Set(Array.from(document.querySelectorAll("#region-filters input:checked")).map(i => i.value));
-        const depthInput = document.getElementById("recursion-depth");
-        const depth = depthInput ? parseInt(depthInput.value) : 1;
-
-        const filteredNews = allNews.filter(n => {
-            const time = new Date(n.published_date).getTime();
-            const dateMatch = time >= minDate && time <= maxDate;
-            const regionMatch = selectedRegions.has(n.region);
-            return dateMatch && regionMatch;
+        const rows = sqlAll(sql, params);
+        const concepts = rows.map(r => {
+            let samples = [];
+            let relations = [];
+            try { samples = JSON.parse(r.sample_titles || '[]') || []; } catch (_) {}
+            try { relations = JSON.parse(r.top_relations || '[]') || []; } catch (_) {}
+            return {
+                event_date: r.event_date,
+                concept: r.concept,
+                entity_type: r.entity_type,
+                news_count: Number(r.news_count || 0),
+                portal_count: Number(r.portal_count || 0),
+                burst_score: Number(r.burst_score || 0),
+                samples: samples,
+                relations: relations,
+                is_political: Boolean(r.is_political),
+                youtube_count: Number(r.youtube_count || 0),
+                max_outlier: Number(r.max_outlier || 0)
+            };
         });
+        return { selected_date: d, concepts: concepts };
+    }
 
-        const wordCounts = {};
-        const coOccurrences = {};
-        wordToArticlesMap = {};
+    function staticGetRelations(evDate, concept) {
+        let sql =
+            "SELECT nr.id, COALESCE(nr.news_id, 0) as news_id, nr.head_entity as head, nr.relation, nr.tail_entity as tail, " +
+            "COALESCE(nr.head_score, 0) as head_score, COALESCE(nr.tail_score, 0) as tail_score, COALESCE(nr.event_date, '') as event_date, " +
+            "COALESCE(n.title, '') as title, COALESCE(n.url, '') as url, COALESCE(p.name, p.domain, '') as portal " +
+            "FROM news_relations nr LEFT JOIN news n ON n.id = nr.news_id LEFT JOIN portals p ON p.id = n.portal_id WHERE 1=1";
+        const params = [];
+        if (evDate && evDate !== 'all') {
+            sql += ' AND nr.event_date = ?';
+            params.push(evDate);
+        }
+        if (concept) {
+            sql += " AND (lower(nr.head_entity) LIKE ? OR lower(nr.tail_entity) LIKE ? OR lower(COALESCE(n.title, '')) LIKE ?)";
+            const like = '%' + concept.toLowerCase() + '%';
+            params.push(like, like, like);
+        }
+        sql += ' ORDER BY nr.event_date DESC, (nr.head_score + nr.tail_score) DESC LIMIT 200';
+        return { relations: sqlAll(sql, params) };
+    }
 
-        filteredNews.forEach(row => {
-            const cleanTitle = row.title.toLowerCase().replace(/[^\p{L}\d_\s]/gu, '');
-            const words = cleanTitle.split(/\s+/).filter(w => w.length > 3 && !stopwords.has(w));
-            const uniqueWords = [...new Set(words)];
-            
-            uniqueWords.forEach(w => {
-                wordCounts[w] = (wordCounts[w] || 0) + 1;
-                if(!wordToArticlesMap[w]) wordToArticlesMap[w] = [];
-                wordToArticlesMap[w].push({title: row.title, url: row.url, date: row.published_date, region: row.region});
-            });
+    function staticGetYouTube(concept, onlyOutliers) {
+        let sql =
+            "SELECT id, concept, COALESCE(event_date, '') as event_date, video_id, title, " +
+            "COALESCE(channel_id, '') as channel_id, COALESCE(channel_title, '') as channel_title, " +
+            "COALESCE(published_at, '') as published_at, COALESCE(thumbnail_url, '') as thumbnail_url, " +
+            "COALESCE(view_count, 0) as view_count, COALESCE(like_count, 0) as like_count, " +
+            "COALESCE(comment_count, 0) as comment_count, COALESCE(subscriber_count, 0) as subscriber_count, " +
+            "COALESCE(outlier_ratio, 0) as outlier_ratio, COALESCE(CAST(updated_at AS TEXT), '') as updated_at " +
+            "FROM youtube_concept_videos WHERE 1=1";
+        const params = [];
+        const c = (concept || '').trim();
+        if (c) {
+            sql += ' AND lower(concept) = lower(?)';
+            params.push(c);
+        }
+        if (onlyOutliers) {
+            sql += ' AND outlier_ratio >= 5.0';
+        }
+        sql += ' ORDER BY outlier_ratio DESC, view_count DESC LIMIT 120';
+        return { concept: c, videos: sqlAll(sql, params) };
+    }
 
-            for(let i=0; i<uniqueWords.length; i++){
-                const w1 = uniqueWords[i];
-                if(!coOccurrences[w1]) coOccurrences[w1] = {};
-                for(let j=i+1; j<uniqueWords.length; j++){
-                    const w2 = uniqueWords[j];
-                    coOccurrences[w1][w2] = (coOccurrences[w1][w2] || 0) + 1;
-                    if(!coOccurrences[w2]) coOccurrences[w2] = {};
-                    coOccurrences[w2][w1] = (coOccurrences[w2][w1] || 0) + 1;
+    function staticGetGraph(evDate, onlyPol, q) {
+        const nodeMap = {};
+        const ensureNode = (label, typ, val, pol) => {
+            const clean = (label || '').trim();
+            if (!clean) return '';
+            const key = clean.toLowerCase();
+            if (nodeMap[key]) {
+                nodeMap[key].value += val;
+                if (pol) nodeMap[key].is_political = true;
+                return nodeMap[key].id;
+            }
+            nodeMap[key] = { id: clean, value: Math.max(1, val), type: typ, is_political: Boolean(pol) };
+            return clean;
+        };
+
+        const links = [];
+        const seenLink = {};
+
+        let relSQL = "SELECT head_entity, relation, tail_entity, COALESCE(event_date, '') as event_date FROM news_relations WHERE 1=1";
+        const rParams = [];
+        if (evDate && evDate !== 'all') {
+            relSQL += ' AND event_date = ?';
+            rParams.push(evDate);
+        }
+        if (q) {
+            relSQL += ' AND (lower(head_entity) LIKE ? OR lower(tail_entity) LIKE ? OR lower(relation) LIKE ?)';
+            const like = '%' + q.toLowerCase() + '%';
+            rParams.push(like, like, like);
+        }
+        relSQL += ' ORDER BY (head_score + tail_score) DESC LIMIT 80';
+
+        sqlAll(relSQL, rParams).forEach(r => {
+            const hid = ensureNode(r.head_entity, 'REL', 4, isPoliticalHeuristic(r.head_entity));
+            const tid = ensureNode(r.tail_entity, 'REL', 4, isPoliticalHeuristic(r.tail_entity));
+            if (hid && tid && hid !== tid) {
+                const k = hid + '|' + r.relation + '|' + tid;
+                if (!seenLink[k]) {
+                    seenLink[k] = true;
+                    links.push({ source: hid, target: tid, label: r.relation, weight: 3, kind: 'gliner' });
                 }
             }
         });
 
-        let nodesToInclude = new Set();
-        const initialNodes = Object.keys(wordCounts).filter(w => wordCounts[w] >= MIN_COUNT);
-
-        if (searchText) {
-            let currentLevel = initialNodes.filter(w => w.includes(searchText));
-            currentLevel.forEach(n => nodesToInclude.add(n));
-            
-            for (let i = 0; i < depth; i++) {
-                let neighbors = new Set();
-                currentLevel.forEach(node => {
-                    const adj = coOccurrences[node] || {};
-                    Object.keys(adj).forEach(neighbor => {
-                        if (initialNodes.includes(neighbor) && !nodesToInclude.has(neighbor)) {
-                            neighbors.add(neighbor);
-                        }
-                    });
-                });
-                neighbors.forEach(n => nodesToInclude.add(n));
-                currentLevel = Array.from(neighbors);
-            }
-        } else {
-            initialNodes.forEach(n => nodesToInclude.add(n));
+        let cSQL = "SELECT concept, COALESCE(entity_type, 'TOP') as entity_type, news_count, portal_count, COALESCE(is_political, 0) as is_political, COALESCE(sample_titles, '[]') as sample_titles FROM daily_concepts WHERE 1=1";
+        const cParams = [];
+        if (evDate && evDate !== 'all') {
+            cSQL += ' AND event_date = ?';
+            cParams.push(evDate);
         }
+        if (onlyPol) {
+            cSQL += ' AND is_political = 1';
+        }
+        if (q) {
+            cSQL += ' AND (lower(concept) LIKE ? OR lower(sample_titles) LIKE ?)';
+            const like = '%' + q.toLowerCase() + '%';
+            cParams.push(like, like);
+        }
+        cSQL += ' ORDER BY (portal_count * 4 + news_count) DESC LIMIT 45';
 
-        const selectedTypes = new Set(Array.from(document.querySelectorAll("#entity-filters input:checked")).map(i => i.value));
+        const cItems = [];
+        sqlAll(cSQL, cParams).forEach(r => {
+            const nid = ensureNode(r.concept, r.entity_type, Number(r.news_count || 0), Boolean(r.is_political));
+            let samples = [];
+            try { samples = JSON.parse(r.sample_titles || '[]') || []; } catch (_) {}
+            const idSet = new Set();
+            samples.forEach(s => { if (s && s.news_id) idSet.add(s.news_id); });
+            if (nid) cItems.push({ id: nid, newsIDs: idSet });
+        });
 
-        const nodes = Array.from(nodesToInclude)
-            .map(w => ({
-                id: w, 
-                value: wordCounts[w],
-                type: wordTypes[w] || 'default'
-            }))
-            .filter(n => selectedTypes.has(n.type));
-
-        globalLinks = [];
-        const seenLinks = new Set();
-        const finalNodeIds = new Set(nodes.map(n => n.id));
-
-        nodes.forEach(n1 => {
-            const w1 = n1.id;
-            Object.keys(coOccurrences[w1] || {}).forEach(w2 => {
-                if(finalNodeIds.has(w2)) {
-                    const weight = coOccurrences[w1][w2];
-                    if(weight >= MIN_CO_OCCURRENCE) {
-                        const idKey = [w1, w2].sort().join("|");
-                        if(!seenLinks.has(idKey)) {
-                            globalLinks.push({source: w1, target: w2, value: weight});
-                            seenLinks.add(idKey);
-                        }
+        for (let i = 0; i < cItems.length; i++) {
+            for (let j = i + 1; j < cItems.length; j++) {
+                let shared = 0;
+                cItems[i].newsIDs.forEach(nid => {
+                    if (cItems[j].newsIDs.has(nid)) shared++;
+                });
+                if (shared > 0) {
+                    const k = cItems[i].id + '|co|' + cItems[j].id;
+                    if (!seenLink[k]) {
+                        seenLink[k] = true;
+                        links.push({ source: cItems[i].id, target: cItems[j].id, label: 'co-ocurrencia (' + shared + ')', weight: shared, kind: 'cooccur' });
                     }
                 }
-            });
-        });
+            }
+        }
 
-        renderD3(nodes, globalLinks);
+        return { nodes: Object.values(nodeMap), links: links };
     }
 
-    function renderD3(nodes, links) {
-        container.selectAll("*").remove();
-        if (simulation) simulation.stop();
+    async function initDashboard() {
+        try {
+            const res = await fetch('/api/overview');
+            if (!res.ok) throw new Error('HTTP ' + res.status);
+            const data = await res.json();
+            state.apiAvailable = true;
+            state.staticMode = false;
+            syncModeUI();
+            applyOverviewData(data);
+            await loadTimeline();
+        } catch (err) {
+            console.info('Backend /api no disponible, iniciando visor estático .db.gz:', err);
+            state.apiAvailable = false;
+            try {
+                await initStaticSQLite();
+                await loadOverview();
+                await loadTimeline();
+            } catch (wasmErr) {
+                const banner = document.getElementById('job-banner');
+                banner.style.display = 'block';
+                banner.innerText = '⚠️ Error cargando snapshot SQLite: ' + wasmErr.message + '. Puedes abrir manualmente un archivo .db o .db.gz con el botón "📂 Abrir .db/.gz".';
+                console.error(wasmErr);
+            }
+        }
+    }
 
-        const width = window.innerWidth;
-        const height = window.innerHeight;
+    function applyOverviewData(data) {
+        const st = data.stats || {};
+        const latestRun = (data.daily_runs && data.daily_runs.length > 0) ? data.daily_runs[0] : null;
+        const runLabel = latestRun ? (latestRun.run_date + ' (' + latestRun.status + ')') : 'sin pasadas cron';
 
-        simulation = d3.forceSimulation(nodes)
-            .force("link", d3.forceLink(links).id(d => d.id).distance(150))
-            .force("charge", d3.forceManyBody().strength(-300))
-            .force("center", d3.forceCenter(width / 2, height / 2))
-            .force("collide", d3.forceCollide().radius(d => Math.sqrt(d.value) * 6 + 10));
+        document.getElementById('stats-bar').innerHTML =
+            '<span class="stat-pill">📰 Noticias: <strong>' + fmtNum(st.news) + '</strong></span>' +
+            '<span class="stat-pill">🌐 Portales: <strong>' + fmtNum(st.portals) + '</strong></span>' +
+            '<span class="stat-pill">🧩 Conceptos/Día: <strong>' + fmtNum(st.concepts) + '</strong></span>' +
+            '<span class="stat-pill">🤝 Relaciones GLiNER2: <strong>' + fmtNum(st.relations) + '</strong></span>' +
+            '<span class="stat-pill">🎬 Vídeos YT: <strong>' + fmtNum(st.yt_videos) + '</strong></span>' +
+            '<span class="stat-pill hot">🔥 Outliers (&ge;5x): <strong>' + fmtNum(st.outliers) + '</strong></span>' +
+            '<span class="stat-pill">⏰ Cron: <strong>' + esc(runLabel) + '</strong></span>';
 
-        linkSelection = container.append("g")
-            .attr("class", "links")
-            .selectAll("line")
+        state.availableDates = data.dates || [];
+        if (!state.selectedDate && state.availableDates.length > 0) {
+            state.selectedDate = state.availableDates[0].date;
+        }
+        renderDateRibbon();
+        updateJobBanner(data.job);
+    }
+
+    async function loadOverview() {
+        try {
+            if (state.staticMode && state.sqlDB) {
+                applyOverviewData(staticGetOverview());
+                return;
+            }
+            const res = await fetch('/api/overview');
+            const data = await res.json();
+            applyOverviewData(data);
+        } catch (e) {
+            console.error(e);
+        }
+    }
+
+    function updateJobBanner(job) {
+        const banner = document.getElementById('job-banner');
+        const btnRebuild = document.getElementById('btn-rebuild');
+        const btnDaily = document.getElementById('btn-daily');
+
+        if (state.staticMode) {
+            if (state.wasmBannerText) {
+                banner.style.display = 'block';
+                banner.innerText = state.wasmBannerText;
+            }
+            return;
+        }
+
+        if (job && job.running) {
+            banner.style.display = 'block';
+            banner.innerText = '⏳ Ejecutando tarea en segundo plano (' + job.mode + ') iniciada a las ' + job.started_at + '... La vista se actualizará automáticamente al finalizar.';
+            btnRebuild.disabled = true;
+            btnDaily.disabled = true;
+            if (!state.jobTimer) {
+                state.jobTimer = setInterval(pollOverview, 4000);
+            }
+        } else {
+            btnRebuild.disabled = false;
+            btnDaily.disabled = false;
+            if (state.jobTimer) {
+                clearInterval(state.jobTimer);
+                state.jobTimer = null;
+                loadTimeline();
+            }
+            if (job && job.last_error) {
+                banner.style.display = 'block';
+                banner.innerText = '⚠️ Último aviso del proceso: ' + job.last_error;
+            } else {
+                banner.style.display = 'none';
+            }
+        }
+    }
+
+    async function pollOverview() {
+        await loadOverview();
+    }
+
+    async function triggerJob(mode) {
+        if (state.staticMode) return;
+        try {
+            const res = await fetch('/api/daily-run?mode=' + encodeURIComponent(mode), { method: 'POST' });
+            const data = await res.json();
+            if (data.started || data.running) {
+                await loadOverview();
+            }
+        } catch (e) {
+            alert('Error iniciando tarea: ' + e);
+        }
+    }
+
+    function renderDateRibbon() {
+        const el = document.getElementById('date-ribbon');
+        let html = '<button class="date-chip ' + (state.selectedDate === 'all' ? 'active' : '') + '" onclick="selectDate(\'all\')">' +
+            '<span class="d-day">🗓️ Todos los días</span>' +
+            '<span class="d-meta">' + state.availableDates.length + ' fechas</span></button>';
+
+        state.availableDates.forEach(d => {
+            const active = (state.selectedDate === d.date) ? 'active' : '';
+            html += '<button class="date-chip ' + active + '" onclick="selectDate(\'' + esc(d.date) + '\')">' +
+                '<span class="d-day">' + esc(d.date) + '</span>' +
+                '<span class="d-meta">' + d.concepts + ' conc · ' + d.relations + ' rel</span></button>';
+        });
+        el.innerHTML = html;
+    }
+
+    function selectDate(d) {
+        state.selectedDate = d;
+        renderDateRibbon();
+        loadTimeline();
+        if (state.currentTab === 'graph') loadGraph();
+    }
+
+    function togglePoliticalFilter() {
+        state.onlyPolitical = !state.onlyPolitical;
+        document.getElementById('btn-pol-filter').classList.toggle('active', state.onlyPolitical);
+        loadTimeline();
+    }
+
+    async function loadTimeline() {
+        const q = document.getElementById('tl-search').value.trim();
+        let tlRes, relRes;
+        if (state.staticMode && state.sqlDB) {
+            tlRes = staticGetTimeline(state.selectedDate, state.onlyPolitical, q);
+            relRes = staticGetRelations(state.selectedDate, q);
+        } else {
+            const url = '/api/timeline?date=' + encodeURIComponent(state.selectedDate || '') +
+                '&only_political=' + (state.onlyPolitical ? '1' : '0') +
+                '&q=' + encodeURIComponent(q);
+            [tlRes, relRes] = await Promise.all([
+                fetch(url).then(r => r.json()),
+                fetch('/api/relations?date=' + encodeURIComponent(state.selectedDate || '') + '&concept=' + encodeURIComponent(q)).then(r => r.json())
+            ]);
+        }
+
+        state.lastTimelineConcepts = tlRes.concepts || [];
+        state.lastDayRelations = relRes.relations || [];
+        renderConceptsGrid();
+        renderDayRelations();
+        renderQuickYouTubeChips();
+    }
+
+    function renderConceptsGrid() {
+        const container = document.getElementById('concepts-grid');
+        const items = state.lastTimelineConcepts;
+        if (!items || items.length === 0) {
+            container.innerHTML = '<div class="empty-state">No hay conceptos para los filtros seleccionados. Prueba a pulsar <strong>"Recalcular Conceptos + GLiNER2"</strong> si acabas de añadir noticias.</div>';
+            return;
+        }
+
+        let html = '';
+        items.forEach(c => {
+            const polClass = c.is_political ? 'political' : '';
+            html += '<article class="concept-card ' + polClass + '">' +
+                '<div class="concept-head">' +
+                    '<h3 class="concept-title">' + esc(c.concept) + '</h3>' +
+                    '<span class="badge">' + esc(c.event_date) + '</span>' +
+                '</div>' +
+                '<div class="badges">' +
+                    (c.is_political ? '<span class="badge pol">🏛️ Política / Democracia</span>' : '<span class="badge">' + esc(c.entity_type || 'TOP') + '</span>') +
+                    '<span class="badge portals">🌐 ' + c.portal_count + ' portales</span>' +
+                    '<span class="badge">📰 ' + c.news_count + ' menciones</span>' +
+                    (c.burst_score >= 1.5 ? '<span class="badge burst">⚡ Burst ' + Number(c.burst_score).toFixed(1) + 'x</span>' : '') +
+                    (c.youtube_count > 0 ? '<span class="badge ' + (c.max_outlier >= 5 ? 'yt-hot' : '') + '">🎬 ' + c.youtube_count + ' YT' + (c.max_outlier > 0 ? ' (máx ' + Number(c.max_outlier).toFixed(1) + 'x)' : '') + '</span>' : '') +
+                '</div>';
+
+            if (c.relations && c.relations.length > 0) {
+                html += '<div class="rel-list">';
+                c.relations.slice(0, 4).forEach(rel => {
+                    html += '<div class="rel-row"><span class="rel-ent">' + esc(rel.head) + '</span> <span class="rel-edge">' + esc(rel.relation) + '</span> <span class="rel-ent">' + esc(rel.tail) + '</span></div>';
+                });
+                html += '</div>';
+            }
+
+            if (c.samples && c.samples.length > 0) {
+                html += '<ul class="headlines-list">';
+                c.samples.slice(0, 4).forEach(s => {
+                    html += '<li><a href="' + esc(s.url) + '" target="_blank" rel="noopener">' + esc(s.title) + '</a><span class="meta">[' + esc(s.portal || s.region) + ']</span></li>';
+                });
+                html += '</ul>';
+            }
+
+            html += '<div class="card-footer">' +
+                '<button class="small primary" onclick="openConceptInYouTube(\'' + esc(c.concept).replace(/&#39;/g, "\\'") + '\')">🎬 Ver en Radar YouTube</button>' +
+                '<button class="small" onclick="openConceptInGraph(\'' + esc(c.concept).replace(/&#39;/g, "\\'") + '\')">🕸️ Ver en Grafo</button>' +
+            '</div></article>';
+        });
+        container.innerHTML = html;
+    }
+
+    function renderDayRelations() {
+        const el = document.getElementById('day-relations-container');
+        const list = state.lastDayRelations;
+        if (!list || list.length === 0) {
+            el.innerHTML = '<p style="color:var(--muted);font-size:0.86rem;">No hay relaciones GLiNER2 extraídas todavía para esta selección. Pulsa <strong>Recalcular Conceptos + GLiNER2</strong> arriba.</p>';
+            return;
+        }
+        let html = '<table class="relations-table"><thead><tr><th>Fecha</th><th>Entidad Origen</th><th>Relación (GLiNER2)</th><th>Entidad Destino</th><th>Confianza</th><th>Titular Origen</th></tr></thead><tbody>';
+        list.slice(0, 50).forEach(r => {
+            html += '<tr>' +
+                '<td>' + esc(r.event_date) + '</td>' +
+                '<td><strong>' + esc(r.head) + '</strong></td>' +
+                '<td><span class="rel-edge">' + esc(r.relation) + '</span></td>' +
+                '<td><strong>' + esc(r.tail) + '</strong></td>' +
+                '<td style="color:var(--muted);">H:' + Number(r.head_score).toFixed(2) + ' T:' + Number(r.tail_score).toFixed(2) + '</td>' +
+                '<td><a href="' + esc(r.url) + '" target="_blank">' + esc(r.title) + '</a> <span style="color:var(--muted);">(' + esc(r.portal) + ')</span></td>' +
+            '</tr>';
+        });
+        html += '</tbody></table>';
+        el.innerHTML = html;
+    }
+
+    function renderQuickYouTubeChips() {
+        const el = document.getElementById('yt-quick-chips');
+        const tops = state.lastTimelineConcepts.filter(c => c.is_political).slice(0, 8);
+        const list = tops.length >= 4 ? tops : state.lastTimelineConcepts.slice(0, 8);
+        let html = '<button class="small" onclick="clearYTFilter()">Todos los guardados</button>';
+        list.forEach(c => {
+            html += '<button class="small" onclick="openConceptInYouTube(\'' + esc(c.concept).replace(/&#39;/g, "\\'") + '\')">' + (c.is_political ? '🏛️ ' : '') + esc(c.concept) + '</button>';
+        });
+        el.innerHTML = html;
+    }
+
+    function clearYTFilter() {
+        document.getElementById('yt-concept-input').value = '';
+        loadYouTube(false);
+    }
+
+    function openConceptInYouTube(concept) {
+        document.getElementById('yt-concept-input').value = concept;
+        switchTab('youtube');
+        loadYouTube(false);
+    }
+
+    function toggleOutliersOnly() {
+        state.onlyOutliers = !state.onlyOutliers;
+        document.getElementById('btn-yt-outliers').classList.toggle('active', state.onlyOutliers);
+        loadYouTube(false);
+    }
+
+    async function loadYouTube(forceRefresh) {
+        const concept = document.getElementById('yt-concept-input').value.trim();
+        const errBox = document.getElementById('yt-error-box');
+        errBox.style.display = 'none';
+
+        let data;
+        if (state.staticMode && state.sqlDB) {
+            data = staticGetYouTube(concept, state.onlyOutliers);
+        } else {
+            const url = '/api/youtube?concept=' + encodeURIComponent(concept) +
+                '&date=' + encodeURIComponent(state.selectedDate === 'all' ? '' : (state.selectedDate || '')) +
+                '&outliers=' + (state.onlyOutliers ? '1' : '0') +
+                '&refresh=' + (forceRefresh ? '1' : '0');
+
+            data = await fetch(url).then(r => r.json());
+            if (data.fetch_error) {
+                errBox.style.display = 'block';
+                errBox.innerText = 'Aviso YouTube API: ' + data.fetch_error;
+            }
+        }
+        renderYouTubeGrid(data.videos || []);
+        loadOverview();
+    }
+
+    function renderYouTubeGrid(videos) {
+        const grid = document.getElementById('yt-grid');
+        if (!videos || videos.length === 0) {
+            const hint = state.staticMode
+                ? 'No hay vídeos guardados en el snapshot para este filtro.'
+                : 'No hay vídeos cacheados para esta consulta. Escribe un concepto arriba y pulsa <strong>"🎬 Buscar en vivo (YouTube API)"</strong> para consultar vídeos y calcular su Outlier Score (Visitas / Suscriptores).';
+            grid.innerHTML = '<div class="empty-state">' + hint + '</div>';
+            return;
+        }
+        let html = '';
+        videos.forEach(v => {
+            const isSuper = v.outlier_ratio >= 5.0;
+            html += '<article class="yt-card ' + (isSuper ? 'outlier-hit' : '') + '">' +
+                '<div class="yt-thumb-wrap">' +
+                    '<a href="https://www.youtube.com/watch?v=' + esc(v.video_id) + '" target="_blank" rel="noopener">' +
+                        '<img src="' + esc(v.thumbnail_url) + '" alt="' + esc(v.title) + '">' +
+                    '</a>' +
+                    '<span class="yt-outlier-tag ' + (isSuper ? 'super' : '') + '">' + (isSuper ? '🔥 Talkback Outlier ' : '⚡ Ratio ') + Number(v.outlier_ratio).toFixed(2) + 'x</span>' +
+                '</div>' +
+                '<div class="yt-body">' +
+                    '<span class="badge pol" style="align-self:flex-start;">' + esc(v.concept) + '</span>' +
+                    '<a class="yt-title" href="https://www.youtube.com/watch?v=' + esc(v.video_id) + '" target="_blank" rel="noopener">' + esc(v.title) + '</a>' +
+                    '<div class="yt-channel">📺 ' + esc(v.channel_title) + ' · ' + esc((v.published_at || '').slice(0, 10)) + '</div>' +
+                    '<div class="yt-metrics">' +
+                        '<div>👁️ Visitas: <strong>' + fmtNum(v.view_count) + '</strong></div>' +
+                        '<div>👥 Subs: <strong>' + fmtNum(v.subscriber_count) + '</strong></div>' +
+                        '<div>👍 Likes: <strong>' + fmtNum(v.like_count) + '</strong></div>' +
+                        '<div>💬 Coment.: <strong>' + fmtNum(v.comment_count) + '</strong></div>' +
+                    '</div>' +
+                '</div>' +
+            '</article>';
+        });
+        grid.innerHTML = html;
+    }
+
+    function openConceptInGraph(concept) {
+        document.getElementById('graph-search').value = concept;
+        switchTab('graph');
+    }
+
+    function toggleGraphPol() {
+        state.graphOnlyPolitical = !state.graphOnlyPolitical;
+        document.getElementById('btn-graph-pol').classList.toggle('active', state.graphOnlyPolitical);
+        loadGraph();
+    }
+
+    async function loadGraph() {
+        const q = document.getElementById('graph-search').value.trim();
+        let data;
+        if (state.staticMode && state.sqlDB) {
+            data = staticGetGraph(state.selectedDate || 'all', state.graphOnlyPolitical, q);
+        } else {
+            const url = '/api/graph?date=' + encodeURIComponent(state.selectedDate || 'all') +
+                '&only_political=' + (state.graphOnlyPolitical ? '1' : '0') +
+                '&q=' + encodeURIComponent(q);
+            data = await fetch(url).then(r => r.json());
+        }
+        renderD3Graph(data.nodes || [], data.links || []);
+    }
+
+    function renderD3Graph(nodes, links) {
+        const svg = d3.select('#d3-svg');
+        svg.selectAll('*').remove();
+
+        const box = document.getElementById('graph-box');
+        const width = box.clientWidth || 800;
+        const height = box.clientHeight || 560;
+
+        svg.append('defs').append('marker')
+            .attr('id', 'arrow')
+            .attr('viewBox', '0 -5 10 10')
+            .attr('refX', 20)
+            .attr('refY', 0)
+            .attr('markerWidth', 6)
+            .attr('markerHeight', 6)
+            .attr('orient', 'auto')
+            .append('path')
+            .attr('d', 'M0,-5L10,0L0,5')
+            .attr('fill', '#fb923c');
+
+        const g = svg.append('g');
+        svg.call(d3.zoom().scaleExtent([0.2, 4]).on('zoom', e => g.attr('transform', e.transform)));
+
+        const sim = d3.forceSimulation(nodes)
+            .force('link', d3.forceLink(links).id(d => d.id).distance(140))
+            .force('charge', d3.forceManyBody().strength(-320))
+            .force('center', d3.forceCenter(width / 2, height / 2))
+            .force('collide', d3.forceCollide().radius(d => Math.min(34, 12 + Math.sqrt(d.value) * 3)));
+
+        const link = g.append('g').selectAll('line')
             .data(links)
-            .enter().append("line")
-            .attr("stroke-width", d => Math.sqrt(d.value) * 2);
+            .enter().append('line')
+            .attr('stroke', d => d.kind === 'gliner' ? '#fb923c' : '#475569')
+            .attr('stroke-opacity', d => d.kind === 'gliner' ? 0.85 : 0.4)
+            .attr('stroke-width', d => d.kind === 'gliner' ? 2.2 : 1.2)
+            .attr('marker-end', d => d.kind === 'gliner' ? 'url(#arrow)' : null);
 
-        nodeSelection = container.append("g")
-            .attr("class", "nodes")
-            .selectAll("g")
+        const linkLabels = g.append('g').selectAll('text')
+            .data(links.filter(l => l.kind === 'gliner'))
+            .enter().append('text')
+            .text(d => d.label)
+            .attr('fill', '#fed7aa')
+            .attr('font-size', '10px')
+            .attr('text-anchor', 'middle');
+
+        const node = g.append('g').selectAll('g')
             .data(nodes)
-            .enter().append("g");
+            .enter().append('g')
+            .style('cursor', 'pointer')
+            .on('click', (ev, d) => inspectGraphNode(d, links))
+            .call(d3.drag()
+                .on('start', (e, d) => { if (!e.active) sim.alphaTarget(0.3).restart(); d.fx = d.x; d.fy = d.y; })
+                .on('drag', (e, d) => { d.fx = e.x; d.fy = e.y; })
+                .on('end', (e, d) => { if (!e.active) sim.alphaTarget(0); d.fx = null; d.fy = null; }));
 
-        nodeSelection.append("circle")
-            .attr("r", d => Math.max(8, Math.sqrt(d.value) * 6))
-            .attr("class", d => "node-" + d.type.toLowerCase())
-            .on("click", (event, d) => {
-                event.stopPropagation();
-                handleNodeClick(d);
-            })
-            .call(d3.drag().on("start", dragstarted).on("drag", dragged).on("end", dragended));
+        node.append('circle')
+            .attr('r', d => Math.min(26, Math.max(8, 5 + Math.sqrt(d.value) * 2.5)))
+            .attr('fill', d => d.is_political ? '#facc15' : (d.type === 'REL' ? '#38bdf8' : '#2dd4bf'))
+            .attr('stroke', '#0f1115')
+            .attr('stroke-width', 1.5);
 
-        textSelection = nodeSelection.append("text")
+        node.append('text')
             .text(d => d.id)
-            .attr("x", d => Math.sqrt(d.value) * 6 + 10)
-            .attr("y", 5);
+            .attr('x', 14)
+            .attr('y', 4)
+            .attr('fill', '#e2e8f0')
+            .attr('font-size', '12px')
+            .attr('font-weight', d => d.is_political ? '700' : '500');
 
-        simulation.on("tick", () => {
-            linkSelection.attr("x1", d => d.source.x).attr("y1", d => d.source.y).attr("x2", d => d.target.x).attr("y2", d => d.target.y);
-            nodeSelection.attr("transform", d => "translate(" + d.x + "," + d.y + ")");
+        sim.on('tick', () => {
+            link.attr('x1', d => d.source.x).attr('y1', d => d.source.y)
+                .attr('x2', d => d.target.x).attr('y2', d => d.target.y);
+            linkLabels
+                .attr('x', d => (d.source.x + d.target.x) / 2)
+                .attr('y', d => (d.source.y + d.target.y) / 2 - 4);
+            node.attr('transform', d => 'translate(' + d.x + ',' + d.y + ')');
         });
-
-        function dragstarted(event, d) { if (!event.active) simulation.alphaTarget(0.3).restart(); d.fx = d.x; d.fy = d.y; }
-        function dragged(event, d) { d.fx = event.x; d.fy = event.y; }
-        function dragended(event, d) { if (!event.active) simulation.alphaTarget(0); d.fx = null; d.fy = null; }
     }
 
-    function handleNodeClick(nodeData) {
-        if (clickHistory.length === 0 || clickHistory[clickHistory.length - 1].id !== nodeData.id) {
-            clickHistory.push(nodeData);
-            document.getElementById("back-btn").disabled = clickHistory.length <= 1;
+    async function inspectGraphNode(node, links) {
+        const sidebar = document.getElementById('graph-sidebar');
+        sidebar.innerHTML = '<h3 style="margin-top:0;color:var(--gold);">' + esc(node.id) + '</h3>' +
+            '<div style="margin-bottom:12px;"><button class="small primary" onclick="openConceptInYouTube(\'' + esc(node.id).replace(/&#39;/g, "\\'") + '\')">🎬 Buscar en Radar YouTube</button></div>' +
+            '<div style="color:var(--muted);font-size:0.82rem;">Cargando relaciones y titulares...</div>';
+
+        let relRes, tlRes;
+        if (state.staticMode && state.sqlDB) {
+            relRes = staticGetRelations('all', node.id);
+            tlRes = staticGetTimeline('all', false, node.id);
+        } else {
+            [relRes, tlRes] = await Promise.all([
+                fetch('/api/relations?date=all&concept=' + encodeURIComponent(node.id)).then(r => r.json()),
+                fetch('/api/timeline?date=all&q=' + encodeURIComponent(node.id)).then(r => r.json())
+            ]);
         }
-        
-        applyHighlight(nodeData.id);
-        openInfoPanel(nodeData.id, wordToArticlesMap[nodeData.id]);
-    }
 
-    function goBack() {
-        if (clickHistory.length > 1) {
-            clickHistory.pop();
-            const prevNode = clickHistory[clickHistory.length - 1];
-            applyHighlight(prevNode.id);
-            openInfoPanel(prevNode.id, wordToArticlesMap[prevNode.id]);
-            document.getElementById("back-btn").disabled = clickHistory.length <= 1;
-        }
-    }
+        let html = '<h3 style="margin-top:0;color:var(--gold);">' + esc(node.id) + '</h3>' +
+            '<div style="margin-bottom:12px;"><button class="small primary" onclick="openConceptInYouTube(\'' + esc(node.id).replace(/&#39;/g, "\\'") + '\')">🎬 Buscar en Radar YouTube</button></div>';
 
-    function applyHighlight(nodeId) {
-        currentHighlightedNeighbors = new Set();
-        currentHighlightedNeighbors.add(nodeId);
-
-        linkSelection.classed("highlight-link", d => {
-            const isConnected = d.source.id === nodeId || d.target.id === nodeId;
-            if (isConnected) {
-                currentHighlightedNeighbors.add(d.source.id);
-                currentHighlightedNeighbors.add(d.target.id);
-            }
-            return isConnected;
-        }).classed("dimmed", d => {
-            return d.source.id !== nodeId && d.target.id !== nodeId;
-        });
-
-        nodeSelection.selectAll("circle")
-            .classed("highlight-center", d => d.id === nodeId)
-            .classed("highlight-neighbor", d => d.id !== nodeId && currentHighlightedNeighbors.has(d.id))
-            .classed("dimmed", d => !currentHighlightedNeighbors.has(d.id));
-
-        textSelection
-            .classed("highlight-text", d => currentHighlightedNeighbors.has(d.id))
-            .classed("dimmed", d => !currentHighlightedNeighbors.has(d.id));
-    }
-
-    function resetHighlight() {
-        linkSelection.classed("highlight-link", false).classed("dimmed", false);
-        nodeSelection.selectAll("circle").classed("highlight-center", false).classed("highlight-neighbor", false).classed("dimmed", false);
-        textSelection.classed("highlight-text", false).classed("dimmed", false);
-        clickHistory = [];
-        currentHighlightedNeighbors = new Set();
-        document.getElementById("back-btn").disabled = true;
-    }
-
-    function highlightText(text, mainWord, neighborSet) {
-        let highlighted = text;
-        const escape = str => str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-        
-        const mainRegex = new RegExp('(' + escape(mainWord) + ')', 'gi');
-        highlighted = highlighted.replace(mainRegex, '<span class="kw-main">$1</span>');
-        
-        neighborSet.forEach(nb => {
-            if (nb !== mainWord) {
-                const nbRegex = new RegExp('(' + escape(nb) + ')', 'gi');
-                highlighted = highlighted.replace(nbRegex, '<span class="kw-neighbor">$1</span>');
-            }
-        });
-        
-        return highlighted;
-    }
-
-    function openInfoPanel(word, articles) {
-        const panel = document.getElementById("info-panel");
-        const titleLabel = document.getElementById("node-title");
-        const content = document.getElementById("info-content");
-        titleLabel.innerText = word;
-        content.innerHTML = "";
-        
-        if(articles) {
-            const selectedRegions = new Set(Array.from(document.querySelectorAll("#region-filters input:checked")).map(i => i.value));
-            const filteredArticles = articles.filter(art => selectedRegions.has(art.region));
-            
-            filteredArticles.sort((a,b) => new Date(b.date) - new Date(a.date));
-            filteredArticles.forEach(art => {
-                const div = document.createElement("div");
-                div.className = "article-entry";
-                
-                const highlightedTitle = highlightText(art.title, word, currentHighlightedNeighbors);
-                
-                div.innerHTML = "<a href='" + art.url + "' target='_blank'>" + highlightedTitle + "</a><div class='meta'>" + new Date(art.date).toLocaleString() + " | " + art.region + "</div>";
-                content.appendChild(div);
+        const rels = relRes.relations || [];
+        if (rels.length > 0) {
+            html += '<h4 style="color:var(--teal);margin:10px 0 6px;">Relaciones GLiNER2</h4><div class="rel-list">';
+            rels.slice(0, 12).forEach(r => {
+                html += '<div class="rel-row"><span class="rel-ent">' + esc(r.head) + '</span> <span class="rel-edge">' + esc(r.relation) + '</span> <span class="rel-ent">' + esc(r.tail) + '</span></div>';
             });
+            html += '</div>';
         }
-        panel.classList.add("open");
+
+        const concs = tlRes.concepts || [];
+        if (concs.length > 0 && concs[0].samples) {
+            html += '<h4 style="color:var(--teal);margin:12px 0 6px;">Titulares Relacionados</h4><ul class="headlines-list">';
+            concs[0].samples.slice(0, 8).forEach(s => {
+                html += '<li><a href="' + esc(s.url) + '" target="_blank">' + esc(s.title) + '</a></li>';
+            });
+            html += '</ul>';
+        }
+
+        sidebar.innerHTML = html;
     }
 
-    document.getElementById("close-btn").addEventListener("click", () => {
-        document.getElementById("info-panel").classList.remove("open");
-        resetHighlight();
-    });
-    
-    function toggleSection(id) {
-        const content = document.getElementById(id);
-        const header = content.previousElementSibling;
-        content.classList.toggle("collapsed");
-        header.classList.toggle("collapsed");
-    }
-
-    function selectAll(containerId, bool) {
-        const inputs = document.querySelectorAll("#" + containerId + " input");
-        inputs.forEach(i => i.checked = bool);
-    }
-    
-    init();
+    initDashboard();
 </script>
 </body>
 </html>
