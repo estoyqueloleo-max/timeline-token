@@ -4,9 +4,13 @@ news-tool
 *.dll
 *.so
 
-# Database
+# Database & runtime logs
+news_central.db
 news_central.db-shm
 news_central.db-wal
+crawl_diagnostics.json
+.timeline-serve.pid
+timeline-serve.log
 
 # OS
 .DS_Store

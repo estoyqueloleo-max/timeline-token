@@ -69,3 +69,74 @@ CREATE TABLE IF NOT EXISTS news_entities (
     PRIMARY KEY(news_id, word, type),
     FOREIGN KEY(news_id) REFERENCES news(id)
 );
+
+-- GLiNER2 Extracted Relations table
+CREATE TABLE IF NOT EXISTS news_relations (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    news_id INTEGER,
+    head_entity TEXT NOT NULL,
+    relation TEXT NOT NULL,
+    tail_entity TEXT NOT NULL,
+    head_score REAL,
+    tail_score REAL,
+    event_date TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(news_id, head_entity, relation, tail_entity),
+    FOREIGN KEY(news_id) REFERENCES news(id)
+);
+CREATE INDEX IF NOT EXISTS idx_news_relations_date ON news_relations(event_date);
+CREATE INDEX IF NOT EXISTS idx_news_relations_head ON news_relations(head_entity);
+CREATE INDEX IF NOT EXISTS idx_news_relations_tail ON news_relations(tail_entity);
+
+-- Chronological Daily Concepts Aggregation
+CREATE TABLE IF NOT EXISTS daily_concepts (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    event_date TEXT NOT NULL,
+    concept TEXT NOT NULL,
+    entity_type TEXT,
+    news_count INTEGER DEFAULT 0,
+    portal_count INTEGER DEFAULT 0,
+    burst_score REAL DEFAULT 1.0,
+    sample_titles TEXT,
+    top_relations TEXT,
+    is_political BOOLEAN DEFAULT 0,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(event_date, concept)
+);
+CREATE INDEX IF NOT EXISTS idx_daily_concepts_date ON daily_concepts(event_date);
+
+-- YouTube Analytics & Talkback Outliers per Concept
+CREATE TABLE IF NOT EXISTS youtube_concept_videos (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    concept TEXT NOT NULL,
+    event_date TEXT,
+    video_id TEXT NOT NULL,
+    title TEXT NOT NULL,
+    channel_id TEXT,
+    channel_title TEXT,
+    published_at TEXT,
+    thumbnail_url TEXT,
+    view_count INTEGER DEFAULT 0,
+    like_count INTEGER DEFAULT 0,
+    comment_count INTEGER DEFAULT 0,
+    subscriber_count INTEGER DEFAULT 0,
+    outlier_ratio REAL DEFAULT 0,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(concept, video_id)
+);
+CREATE INDEX IF NOT EXISTS idx_yt_concept ON youtube_concept_videos(concept);
+
+-- Daily Automation Runs Log
+CREATE TABLE IF NOT EXISTS daily_runs (
+    run_date TEXT PRIMARY KEY,
+    status TEXT NOT NULL,
+    started_at DATETIME,
+    finished_at DATETIME,
+    portals_ok INTEGER DEFAULT 0,
+    news_added INTEGER DEFAULT 0,
+    concepts_extracted INTEGER DEFAULT 0,
+    relations_extracted INTEGER DEFAULT 0,
+    youtube_videos_fetched INTEGER DEFAULT 0,
+    notes TEXT
+);
+

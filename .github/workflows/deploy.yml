@@ -20,11 +20,13 @@ jobs:
       - name: Prepare Public Dir
         run: |
           mkdir -p public
-          # Copiamos la DB y el visor (renombrado a index.html para que sea la home)
-          cp news_central.db public/
+          if [ -f news_central.db.gz ]; then
+            cp news_central.db.gz public/
+          elif [ -f news_central.db ]; then
+            gzip -9 -c news_central.db > public/news_central.db.gz
+          fi
           cp semantic_map.html public/index.html
           cp semantic_map.html public/
-          # Opcional: copiar el README si quieres tenerlo ahí
           cp README.md public/
           
       - name: Deploy to GitHub Pages
