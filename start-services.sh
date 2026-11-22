@@ -328,7 +328,6 @@ run_rebuild_concepts() {
 cron_check() {
     echo "[$(date '+%Y-%m-%d %H:%M:%S')] Iniciando cron-check..."
     build_news_tool >/dev/null
-    start_serve >/dev/null || true
 
     exec 200>"${CRON_LOCK_FILE}"
     if ! flock -n 200; then
