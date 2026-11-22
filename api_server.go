@@ -692,11 +692,17 @@ func resolveDefaultSearxURL() string {
 		return env
 	}
 	client := &http.Client{Timeout: 1200 * time.Millisecond}
+	if resp, err := client.Get("http://localhost:8808/search?q=test&format=json"); err == nil {
+		resp.Body.Close()
+		if resp.StatusCode == http.StatusOK {
+			return "http://localhost:8808"
+		}
+	}
 	if resp, err := client.Get("http://localhost:8080/search?q=test&format=json"); err == nil {
 		resp.Body.Close()
 		if resp.StatusCode == http.StatusOK {
 			return "http://localhost:8080"
 		}
 	}
-	return "http://localhost:8080"
+	return "http://localhost:8808"
 }

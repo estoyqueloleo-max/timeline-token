@@ -13,7 +13,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 MCP_DIR="${MCP_DIR:-/home/jose/workspace/sandbox/gemini/mcp-webdriverio}"
 SEARXNG_DIR="${SEARXNG_DIR:-/home/jose/open-notebook/searchng}"
 CONTAINER_NAME="${SEARXNG_CONTAINER_NAME:-searxng}"
-SEARXNG_PORT="${SEARXNG_PORT:-8080}"
+SEARXNG_PORT="${SEARXNG_PORT:-8808}"
 WEB_PORT="${WEB_PORT:-8085}"
 LLM_URL="${LLM_URL:-http://192.168.1.4:4001}"
 INSTALL_BIN_DIR="${INSTALL_BIN_DIR:-/home/jose/go/bin}"
@@ -116,10 +116,17 @@ ensure_searxng() {
     fi
 
     if container_exists; then
-        echo -e "${YELLOW}El contenedor '${CONTAINER_NAME}' existía detenido. Arrancando...${NC}"
-        docker start "${CONTAINER_NAME}" >/dev/null
-        wait_for_searxng || true
-        return 0
+        local bound_port
+        bound_port=$(docker inspect "${CONTAINER_NAME}" --format '{{(index (index .HostConfig.PortBindings "8080/tcp") 0).HostPort}}' 2>/dev/null || true)
+        if [ -n "${bound_port}" ] && [ "${bound_port}" != "${SEARXNG_PORT}" ]; then
+            echo -e "${YELLOW}El contenedor '${CONTAINER_NAME}' estaba asignado a :${bound_port}. Recreándolo en :${SEARXNG_PORT}...${NC}"
+            docker rm -f "${CONTAINER_NAME}" >/dev/null 2>&1 || true
+        else
+            echo -e "${YELLOW}El contenedor '${CONTAINER_NAME}' existía detenido. Arrancando...${NC}"
+            docker start "${CONTAINER_NAME}" >/dev/null
+            wait_for_searxng || true
+            return 0
+        fi
     fi
 
     if [ ! -f "${SEARXNG_DIR}/settings.yml" ]; then

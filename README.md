@@ -9,7 +9,7 @@ Motor de descubrimiento y seguimiento cronológico de noticias en Go con extracc
 ## Arquitectura
 
 1. **Descubrimiento y Extracción Híbrida (`crawler.go`, `extractor.go`, `mcp_bridge.go`)**:
-   - Descubrimiento en **SearXNG** (`http://localhost:8080`) con control de `--delay` y filtros por `--regions`.
+   - Descubrimiento en **SearXNG** (`http://localhost:8808`) con control de `--delay` y filtros por `--regions`.
    - Captura por **RSS/Atom**, **Sitemaps de noticias (`robots.txt`, `sitemap-news.xml`)** y scraping de portada/hemeroteca.
    - **Fallback determinista vía MCP (`mcp-web-actor`)**: cuando un portal falla por HTTP o devuelve `0` enlaces (p. ej. renderizado JS o bloqueos), `MCPBridge` invoca por `stdio` al navegador headless (`extract_structured_news`) aplicando capas DOM -> JSON-LD -> OpenGraph.
    - Diagnóstico estructurado de cobertura y errores en `diagnostics.go` (`crawl_diagnostics.json`).
@@ -67,7 +67,7 @@ Motor de descubrimiento y seguimiento cronológico de noticias en Go con extracc
 ./start-services.sh [comando]
 ```
 
-- `start`: Verifica/arranca el contenedor `searxng` en `:8080` sin colisionar si ya existe, valida binarios MCP en `/home/jose/go/bin` (`mcp-web-actor`, `mcp-searxng`, `mcp-news`) y compila `news-tool`.
+- `start`: Verifica/arranca el contenedor `searxng` en `:8808` sin colisionar si ya existe, valida binarios MCP en `/home/jose/go/bin` (`mcp-web-actor`, `mcp-searxng`, `mcp-news`) y compila `news-tool`.
 - `serve`: Compila `news-tool` si hace falta y levanta `--serve --port=8085` en segundo plano.
 - `daily-run`: Ejecuta una pasada diaria completa (`--daily-run --delay=300ms`) y sincroniza la BD con Git (`sync_db_git`).
 - `rebuild-concepts`: Recalcula conceptos + GLiNER2 + YouTube (`--rebuild-concepts`) sobre la BD local y ejecuta `sync_db_git`.
@@ -75,7 +75,7 @@ Motor de descubrimiento y seguimiento cronológico de noticias en Go con extracc
 - `cron-install`: Instala en el `crontab` del usuario las entradas `@reboot` y `5 * * * *` apuntando a `cron-check`.
 - `cron-check`: Validador idempotente usado por `cron` (candado `flock` en `/tmp/timeline-token-daily.lock`, valida `--check-today` para no repetir pasadas en el mismo día, ejecuta `--daily-check` si está pendiente, apaga SearXNG al terminar y corre `sync_db_git`). No deja servidores ni puertos levantados al finalizar.
 - `cron-status` / `cron-remove`: Muestra el estado del `crontab` e historial de `daily_runs` en SQLite, o elimina las entradas de `crontab`.
-- `status` / `stop [--all|--searxng]` / `stop-searxng` / `restart` / `logs`: Inspección y control de `:8085`, `searxng`, logs locales y cron. Por defecto, `cron-check` y `daily-run` apagan automáticamente `searxng` al terminar el rastreo para no dejar ocupado el puerto `:8080`.
+- `status` / `stop [--all|--searxng]` / `stop-searxng` / `restart` / `logs`: Inspección y control de `:8085`, `searxng`, logs locales y cron. Por defecto, `cron-check` y `daily-run` apagan automáticamente `searxng` al terminar el rastreo para no dejar ocupado el puerto `:8808`.
 
 ---
 
