@@ -75,7 +75,7 @@ Motor de descubrimiento y seguimiento cronológico de noticias en Go con extracc
 - `cron-install`: Instala en el `crontab` del usuario las entradas `@reboot` y `5 * * * *` apuntando a `cron-check`.
 - `cron-check`: Validador idempotente usado por `cron` (candado `flock` en `/tmp/timeline-token-daily.lock`, levanta `:8085`, valida `--check-today` para no repetir pasadas en el mismo día, ejecuta `--daily-check` si está pendiente y corre `sync_db_git`).
 - `cron-status` / `cron-remove`: Muestra el estado del `crontab` e historial de `daily_runs` en SQLite, o elimina las entradas de `crontab`.
-- `status` / `stop [--all]` / `restart` / `logs`: Inspección y control de `:8085`, `searxng`, logs locales y cron.
+- `status` / `stop [--all|--searxng]` / `stop-searxng` / `restart` / `logs`: Inspección y control de `:8085`, `searxng`, logs locales y cron. Por defecto, `cron-check` y `daily-run` apagan automáticamente `searxng` al terminar el rastreo para no dejar ocupado el puerto `:8080`.
 
 ---
 

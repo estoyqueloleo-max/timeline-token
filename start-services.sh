@@ -24,9 +24,10 @@ CRON_LOCK_FILE="/tmp/timeline-token-daily.lock"
 CRON_LOG_FILE="/tmp/timeline-token-cron.log"
 CRON_MARKER="# timeline-token-daily-autocheck"
 AUTO_GIT_SYNC="${AUTO_GIT_SYNC:-1}"
+AUTO_STOP_SEARXNG="${AUTO_STOP_SEARXNG:-1}"
 
 usage() {
-    echo "Uso: $0 [start|stop|restart|status|serve|logs|daily-run|rebuild-concepts|sync-db|cron-check|cron-install|cron-status|cron-remove]"
+    echo "Uso: $0 [start|stop|stop-searxng|restart|status|serve|logs|daily-run|rebuild-concepts|sync-db|cron-check|cron-install|cron-status|cron-remove]"
     echo ""
     echo "Comandos:"
     echo "  start             Valida o arranca SearXNG (:${SEARXNG_PORT}), MCP y compila news-tool"
@@ -38,7 +39,8 @@ usage() {
     echo "  cron-install      Instala @reboot y chequeo horario en crontab del usuario"
     echo "  cron-status       Muestra las entradas cron instaladas y el historial daily_runs"
     echo "  cron-remove       Elimina las entradas de timeline-token del crontab"
-    echo "  stop [--all]      Detiene el servidor web :${WEB_PORT} (añade --all para apagar SearXNG)"
+    echo "  stop [--all|--searxng] Detiene el servidor web :${WEB_PORT} (o SearXNG con --searxng/--all)"
+    echo "  stop-searxng      Detiene el contenedor SearXNG (:${SEARXNG_PORT}) sin borrarlo"
     echo "  restart           Reinicia servicios"
     echo "  status            Muestra el estado completo de servicios, BD y automatización cron"
     echo "  logs              Sigue los logs locales, de cron y de SearXNG"
@@ -133,6 +135,16 @@ ensure_searxng() {
         searxng/searxng >/dev/null
     echo -e "${GREEN}✓ Contenedor '${CONTAINER_NAME}' arrancado.${NC}"
     wait_for_searxng || true
+}
+
+stop_searxng() {
+    if container_running; then
+        echo -e "${YELLOW}Deteniendo contenedor SearXNG '${CONTAINER_NAME}' (puerto ${SEARXNG_PORT})...${NC}"
+        docker stop "${CONTAINER_NAME}" >/dev/null 2>&1 || true
+        echo -e "${GREEN}✓ SearXNG detenido.${NC}"
+    else
+        echo -e "${YELLOW}El contenedor '${CONTAINER_NAME}' no está corriendo.${NC}"
+    fi
 }
 
 mcp_needs_rebuild() {
@@ -298,7 +310,11 @@ run_daily() {
     ensure_mcp_binaries >/dev/null || true
     build_news_tool
     echo -e "\n${BLUE}=== Ejecutando pasada diaria completa (--daily-run) ===${NC}"
-    (cd "${SCRIPT_DIR}" && SEARXNG_URL="http://localhost:${SEARXNG_PORT}" "${NEWS_TOOL_BIN}" --daily-run --delay=300ms)
+    (cd "${SCRIPT_DIR}" && SEARXNG_URL="http://localhost:${SEARXNG_PORT}" "${NEWS_TOOL_BIN}" --daily-run --delay=300ms) || true
+    if [ "${AUTO_STOP_SEARXNG}" = "1" ]; then
+        echo -e "\n${BLUE}=== Apagando SearXNG tras finalizar pasada diaria ===${NC}"
+        stop_searxng
+    fi
     sync_db_git
 }
 
@@ -334,7 +350,11 @@ cron_check() {
 
     ensure_searxng
     ensure_mcp_binaries >/dev/null || true
-    (cd "${SCRIPT_DIR}" && SEARXNG_URL="http://localhost:${SEARXNG_PORT}" "${NEWS_TOOL_BIN}" --daily-check --delay=300ms)
+    (cd "${SCRIPT_DIR}" && SEARXNG_URL="http://localhost:${SEARXNG_PORT}" "${NEWS_TOOL_BIN}" --daily-check --delay=300ms) || true
+    if [ "${AUTO_STOP_SEARXNG}" = "1" ]; then
+        echo "[$(date '+%Y-%m-%d %H:%M:%S')] Apagando SearXNG tras finalizar pasada para liberar puerto ${SEARXNG_PORT}..."
+        stop_searxng
+    fi
     sync_db_git
     echo "[$(date '+%Y-%m-%d %H:%M:%S')] cron-check finalizado."
 }
@@ -409,23 +429,24 @@ start_services() {
 }
 
 stop_services() {
-    local stop_all="${1:-}"
+    local stop_opt="${1:-}"
+    if [ "${stop_opt}" = "--searxng" ]; then
+        stop_searxng
+        return 0
+    fi
+
     stop_serve
 
-    if [ "${stop_all}" = "--all" ]; then
+    if [ "${stop_opt}" = "--all" ]; then
         echo -e "${YELLOW}Deteniendo contenedor compartido '${CONTAINER_NAME}' (--all)...${NC}"
+        stop_searxng
         if container_exists; then
-            if container_running; then
-                docker stop "${CONTAINER_NAME}" >/dev/null
-            fi
-            docker rm "${CONTAINER_NAME}" >/dev/null
-            echo -e "${GREEN}✓ Contenedor '${CONTAINER_NAME}' detenido y eliminado.${NC}"
-        else
-            echo -e "${YELLOW}El contenedor '${CONTAINER_NAME}' no existe.${NC}"
+            docker rm "${CONTAINER_NAME}" >/dev/null 2>&1 || true
+            echo -e "${GREEN}✓ Contenedor '${CONTAINER_NAME}' eliminado.${NC}"
         fi
     else
         if container_running || [ "$(searxng_http_code)" = "200" ]; then
-            echo -e "${BLUE}ℹ Contenedor compartido 'searxng' (:${SEARXNG_PORT}) se mantiene activo para no afectar a mcp-webdriverio (usa '$0 stop --all' para apagarlo también).${NC}"
+            echo -e "${BLUE}ℹ Contenedor 'searxng' (:${SEARXNG_PORT}) se mantiene activo (usa '$0 stop --all' o '$0 stop-searxng' para apagarlo).${NC}"
         fi
     fi
 }
@@ -559,6 +580,9 @@ case "${ACTION}" in
         ;;
     cron-remove)
         cron_remove
+        ;;
+    stop-searxng)
+        stop_searxng
         ;;
     stop)
         stop_services "${2:-}"
